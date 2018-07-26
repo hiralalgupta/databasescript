@@ -1,0 +1,118 @@
+
+var app = angular.module('myapp');
+
+app.factory('RuleService', ['$http', '$q', function($http, $q){
+ 
+    var REST_SERVICE_URI = 'http://localhost:8080/ccc/taxCalculator';
+  /*  var REST_SERVICE_URI_SAVE = 'rulesaveRuleInfo';
+    var REST_SERVICE_CONTROL_TYPE='getControlMapping/';
+    var REST_SERVICE_CLIENTS_RULES = 'rulesearch/';
+    var REST_SERVICE_URI_DISPALY = 'ruledisplay';*/
+    var REST_SERVICE_ADDRESS_INFO = 'addressInfo/';
+    var REST_SERVICE_LOCATION_AREA = 'locationInfo?county=';
+ 
+    var factory = {
+    	fetchAddressInfo: fetchAddressInfo,
+        submit: submit,
+        fetchLocationInfo: fetchLocationInfo,
+        fetchControlMappingTypes:fetchControlMappingTypes,
+        getRulesByClient: getRulesByClient,
+        search: search,
+    };
+ 
+    return factory;
+ 
+    function fetchAddressInfo() {
+        var deferred = $q.defer();
+        $http.get(REST_SERVICE_ADDRESS_INFO)
+            .then(
+            function (response) {
+                deferred.resolve(response.data);
+            },
+            function(errResponse){
+                console.error('Error while fetching Users');
+                deferred.reject(errResponse);
+            }
+        );
+        return deferred.promise;
+    }
+    
+    function fetchLocationInfo(county) {
+        var deferred = $q.defer();
+        $http.get(REST_SERVICE_LOCATION_AREA+county)
+            .then(
+            function (response) {
+                deferred.resolve(response.data);
+            },
+            function(errResponse){
+                console.error('Error while fetching Users');
+                deferred.reject(errResponse);
+            }
+        );
+        return deferred.promise;
+    }
+    
+    function submit(formData) {
+        var deferred = $q.defer();
+        $http.post(REST_SERVICE_URI,formData,{
+            headers: { 'Access-Control-Allow-Origin': '*'}})
+            .then(
+            function (response) {
+                deferred.resolve(response.data);
+            },
+            function(errResponse){
+                console.error('Error while fetching Users');
+                deferred.reject(errResponse);
+            }
+        );
+        return deferred.promise;
+    }
+    
+    function search(formData) {
+        var deferred = $q.defer();
+        $http.post(REST_SERVICE_URI_DISPALY,formData)
+            .then(
+            function (response) {
+                deferred.resolve(response.data);
+            },
+            function(errResponse){
+                console.error('Error while fetching Users');
+                deferred.reject(errResponse);
+            }
+        );
+        return deferred.promise;
+    }
+    
+    
+    function fetchControlMappingTypes(synId,clientId,ruleId){
+    	 var deferred = $q.defer();
+         $http.get(REST_SERVICE_CONTROL_TYPE,{params: {synId: synId,clientId: clientId,ruleId: ruleId}})
+         .then(
+             function (response) {
+                 deferred.resolve(response.data);
+             },
+             function(errResponse){
+                 console.error('Error while fetching Control Mappings');
+                 deferred.reject(errResponse);
+             }
+         );
+         return deferred.promise;
+    }
+    
+    function getRulesByClient(clientId) {
+        var deferred = $q.defer();
+        $http.get(REST_SERVICE_CLIENTS_RULES+clientId)
+            .then(
+            function (response) {
+                deferred.resolve(response.data);
+            },
+            function(errResponse){
+                console.error('Error while fetching Users');
+                deferred.reject(errResponse);
+            }
+        );
+        return deferred.promise;
+    }
+    
+}]);
+

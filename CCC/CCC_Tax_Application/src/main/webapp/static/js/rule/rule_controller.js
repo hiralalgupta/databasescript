@@ -1,0 +1,735 @@
+var app = angular.module('myapp', ['angular.filter','ngMaterial', 'ngMessages', 'material.svgAssetsCache','selectize','autocomplete']);
+
+/*app.run(function ($http) {
+	  // Sends this header with any AJAX request
+	  $http.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
+	  // Send this header only in post requests. Specifies you are sending a JSON object
+	  $http.defaults.headers.post['dataType'] = 'json'
+	});
+*/
+
+
+app.directive('tooltip', function(){
+    return {
+        restrict: 'A',
+        link: function(scope, element, attrs){
+            $(element).hover(function(){
+                // on mouseenter
+                $(element).tooltip('show');
+            }, function(){
+                // on mouseleave
+                $(element).tooltip('hide');
+            });
+        }
+    };
+});
+
+app.controller('TaxCalculatorController', ['$http','$rootScope','$scope','$timeout','RuleService','$compile',"$window","$filter",function($http,$rootScope,$scope, $timeout, RuleService,$compile,$window,$filter) {
+    var self = this;
+    self.clientInfo=[];
+    self.ruleInfo=[];
+    self.tabId = '';
+    $scope.formData={};
+    $scope.TaxDetailForm={};
+    $scope.optionalFeesObject = [];
+    $scope.titleoptionalFeesObject = [];
+    $scope.taxData={};
+    $scope.addAdditionalFees = true;
+    self.totalRegFeesPrimary='';
+    self.controlMapping=[];
+    self.vehicleMakeData="";
+    self.vehicleTypeData = "";
+    self.vehicleTypeDataList = "";
+    self.plateTypeData = "";
+    self.vehicleData="";
+    self.vehicleTaxData = "";
+    self.controlSecondCompFilteredObj="";
+    self.ruleFields="";
+    self.operatorList="";
+    self.secondaryClientSynIds ="";
+    self.secondaryClientSynIdsStatus=[];
+    self.saveMessage = "";
+    
+    self.stateData = "";
+    self.countiesData = "";
+    self.citiesData = "";
+    self.zipCode = [];
+    self.errorResponse ="";
+    $scope.zipPlus4Data = null;
+    
+ 
+    $scope.fetchCounties = function() {
+    	self.countiesData = JSON.parse($scope.stateData).counties;
+    	$scope.stateName = JSON.parse($scope.stateData).name;
+    	self.citiesData = "";
+		self.zipCode = "";
+		$scope.plus4Data = "";
+        
+    };
+
+    $scope.defaultInfo = function() {
+	        RuleService.fetchAddressInfo()
+		        .then(
+		        function(data) {
+		        	self.stateData = data.obj;
+		        	getVehicleMake();
+		            $scope.stateWA = $filter('filter')(self.stateData, function (control) {
+		            	return control.name == "WA" ;
+		        	        
+		        	});
+
+		        },
+		        function(errResponse){
+		            console.error('Error while fetching Users');
+		        }
+	        );
+        
+    };
+    
+    
+    
+    $scope.submit = function() {
+    	$('.modal').modal('hide');
+    	$scope.formData.state = JSON.parse($scope.stateData).name;
+    	$scope.formData.registrationDate = setDate($scope.formData.registrationDateUI);
+    	$scope.formData.lossDate = setDate($scope.formData.totaledDateUI)
+    	
+    	$scope.taxData ={};
+    	var zipplus4 = $scope.formData.zipPlus4Data;
+    	$scope.TaxDetailForm ={};
+    	$scope.formData.zip = zipplus4.substring(0,zipplus4.indexOf("-"));
+    	$scope.formData.plus4 = zipplus4.substring(zipplus4.indexOf("-")+1);
+    	self.vehicleTaxData ="";
+    	RuleService.submit($scope.formData)
+        .then(
+	        function(data) {
+	        	resultData = data.taxObj;
+	        	self.errorResponse = data.errorResponse;
+	        	if(self.errorResponse != null){
+	        		if(self.errorResponse.errorCode == '1'){
+	        			self.countiesData = self.errorResponse.counties;
+	        		}
+	        		$('.errormsg').show();
+	        		$('.modal').modal('hide');
+	        	}else if(resultData != null){
+	        		
+	        			self.vehicleTaxData = resultData;
+	        			
+	        			getSalesTaxData();
+	        			$('.modal').modal('show');
+		        	
+	        	}
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+    };
+    
+   function setDate(adate){
+	   date = new Date(adate);
+	   return (date.getMonth()+1)+"/"+date.getDate()+"/"+date.getFullYear();
+   }
+    
+   function getSalesTaxData() {
+  	  
+	   $scope.showText = null;
+	   $scope.optionalFeesObject = [];
+	   $scope.titleoptionalFeesObject = [];
+	   $scope.selectedNonApprovedFee = [];
+	   
+        $scope.salesTaxWithPercent = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "T" && control.unit == "%" && control.name != 'RTA' ;
+    	        
+    	});
+        
+        $scope.rtaTax = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "T" && control.unit == "%" && control.name == 'RTA' ;
+    	        
+    	});
+        
+        $scope.TaxDetailForm.totalTRA = $scope.rtaTax.length>0?Number($scope.rtaTax[0].taxValue):0.00;
+        $scope.salesTaxWithDollar = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "T" && control.unit == "$" ;
+    	        
+    	});
+        
+        $scope.registrationTaxData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "F" || control.type == "PF" ;
+    	        
+    	});
+        
+        $scope.titleFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TF" ;
+    	        
+    	});
+        
+        $scope.totalRegFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TREG" ;
+    	        
+    	});
+        
+        $scope.totalSalesFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TST" ;
+    	        
+    	});
+        
+        $scope.TaxDetailForm.totalSalesFeesDataValue = (parseFloat($scope.totalSalesFeesData[0].value) - parseFloat($scope.TaxDetailForm.totalTRA)).toFixed(2)
+        $scope.TaxDetailForm.totalRegFee = $scope.totalRegFeesData[0].value;
+        self.totalRegFeesPrimary = $scope.TaxDetailForm.totalRegFee;
+        $scope.optinalFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return (control.type == "CF"  && (control.status == "AP" || control.status == "")) || (control.type == "CF" && control.status == "MO");
+    	        
+    	});
+        
+        $scope.additionalOptionalFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "CF" && control.status == "NA";
+    	        
+    	});
+        
+        $scope.titleOptionalFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TOF" ;
+    	        
+    	});
+        
+        $scope.totaTitleFeesData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TTF" ;
+    	        
+    	});
+        
+        $scope.totalMandatoryOptionalFees = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "TOOF" ;
+    	        
+    	});
+        
+        $scope.TaxDetailForm.totalTitleFee = $scope.totaTitleFeesData[0].value;
+        
+        $scope.totalMandatoryOptionalData = $filter('filter')(self.vehicleTaxData, function (control) {
+        	return control.type == "CF" && control.status == "MO";
+    	        
+    	});
+        
+        $scope.totalofOptionalFee = $scope.totalMandatoryOptionalFees[0].value;
+        
+    };
+    
+    $scope.reverse = function(array) {
+        var copy = [].concat(array);
+        return copy.reverse();
+    }
+    
+    $scope.addFeeInOptionalFees = function(i){
+    	$scope.totalMandatoryOptionalData.splice($scope.totalMandatoryOptionalData.indexOf(i), 1);
+    	var feesValue = i.unit == '$'?i.value:i.taxValue
+   		$scope.totalofOptionalFee = (parseFloat($scope.totalofOptionalFee)+parseFloat(feesValue)).toFixed(2);
+    	$scope.totalMandatoryOptionalData.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':'false'})
+    }
+    
+    
+    $scope.addFeeInSalesFees = function(i){
+    	
+    	$scope.salesTaxWithPercent.splice($scope.salesTaxWithPercent.indexOf(i), 1);
+    	var displayCheck ;
+    	if(i.check){
+    		displayCheck = false;
+    		$scope.TaxDetailForm.totalSalesFeesDataValue = (parseFloat($scope.TaxDetailForm.totalSalesFeesDataValue)+parseFloat(i.taxValue)).toFixed(2);
+    	}else{
+    		displayCheck = true;
+    		$scope.TaxDetailForm.totalSalesFeesDataValue = (parseFloat($scope.TaxDetailForm.totalSalesFeesDataValue)-parseFloat(i.taxValue)).toFixed(2);
+    	}
+    	
+    	$scope.salesTaxWithPercent.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':displayCheck })
+    }
+    
+    
+$scope.addFeeInSalesFeesDollar = function(i){
+    	
+    	$scope.salesTaxWithDollar.splice($scope.salesTaxWithDollar.indexOf(i), 1);
+    	var displayCheck ;
+    	if(i.check){
+    		displayCheck = false;
+    		$scope.TaxDetailForm.totalSalesFeesDataValue = (parseFloat($scope.TaxDetailForm.totalSalesFeesDataValue)+parseFloat(i.value)).toFixed(2);
+    	}else{
+    		displayCheck = true;
+    		$scope.TaxDetailForm.totalSalesFeesDataValue = (parseFloat($scope.TaxDetailForm.totalSalesFeesDataValue)-parseFloat(i.value)).toFixed(2);
+    	}
+    	
+    	$scope.salesTaxWithDollar.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':displayCheck })
+    }
+    
+    $scope.addOptionalFees = function(){
+    	var selectedoptionalFee = JSON.parse($scope.TaxDetailForm.optinalFee);
+    	var value = $scope.showText ? $scope.TaxDetailForm.optinalFeeText :selectedoptionalFee.value;
+    	
+    	var feesValue = selectedoptionalFee.unit == '$'?selectedoptionalFee.value:selectedoptionalFee.taxValue;
+    	if(selectedoptionalFee.type == "OF" && selectedoptionalFee.status == "NA"){
+    		$scope.selectedNonApprovedFee.push({ 'name':selectedoptionalFee.name, 'value': selectedoptionalFee.value, 'url':selectedoptionalFee.url, 'type': selectedoptionalFee.type, 'unit':selectedoptionalFee.unit,'taxValue':selectedoptionalFee.taxValue})
+    	}else{
+    	
+    		$scope.optionalFeesObject.push({ 'name':selectedoptionalFee.name, 'value': selectedoptionalFee.value, 'url':selectedoptionalFee.url, 'type': selectedoptionalFee.type, 'unit':selectedoptionalFee.unit,'taxValue':selectedoptionalFee.taxValue })
+    	}
+    	 $scope.totalofOptionalFee = (parseFloat($scope.totalofOptionalFee)+parseFloat(feesValue)).toFixed(2);
+    	 $scope.TaxDetailForm.optinalFeeText = 0.0;
+    	 $scope.addAdditionalFees = true;
+    }
+    
+    $scope.removeOptionalFees = function (i,check) {
+    	var feesValue = i.unit == '$'?i.value:i.taxValue;
+    	$scope.totalofOptionalFee = (parseFloat($scope.totalofOptionalFee)- parseFloat(feesValue)).toFixed(2);
+    	$scope.addAdditionalFees = true;
+    	if(i.type == "OF" && i.status == "NA"){
+    		$scope.selectedNonApprovedFee.splice($scope.selectedNonApprovedFee.indexOf(i), 1);
+    	}else if(!check){
+    		$scope.optionalFeesObject.splice($scope.optionalFeesObject.indexOf(i), 1);
+    	}else{
+    		$scope.totalMandatoryOptionalData.splice($scope.totalMandatoryOptionalData.indexOf(i), 1);
+   		$scope.totalMandatoryOptionalData.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':'true'})
+    	}
+    };
+    
+    $scope.removeTitleFees = function (i,check) {
+    	
+    	$scope.addAdditionalFees = true;
+    	$scope.titleFeesData.splice($scope.titleFeesData.indexOf(i), 1);
+    	var displayCheck ;
+    	if(i.check){
+    		displayCheck = false;
+    		$scope.TaxDetailForm.totalTitleFee = (parseFloat($scope.TaxDetailForm.totalTitleFee)+ parseFloat(i.value)).toFixed(2);
+    	}else{
+    		displayCheck = true;
+    		$scope.TaxDetailForm.totalTitleFee = (parseFloat($scope.TaxDetailForm.totalTitleFee)- parseFloat(i.value)).toFixed(2);
+    	}
+    	
+    	$scope.titleFeesData.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':displayCheck })
+    }
+    
+    $scope.editRTAFees = function (i,check) {
+    	
+    	$scope.rtaTax.splice($scope.rtaTax.indexOf(i), 1);
+    	var displayCheck ;
+    	if(i.check){
+    		displayCheck = false;
+    		$scope.TaxDetailForm.totalTRA = Number($scope.TaxDetailForm.totalTRA)+ Number(i.taxValue);
+    	}else{
+    		displayCheck = true;
+    		$scope.TaxDetailForm.totalTRA = Number($scope.TaxDetailForm.totalTRA)- Number(i.taxValue);
+    	}
+    	
+    	$scope.rtaTax.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':displayCheck })
+    }
+    
+    
+    $scope.removeRegFees = function (i,check) {
+    	
+    	$scope.addAdditionalFees = true;
+    	$scope.registrationTaxData.splice($scope.registrationTaxData.indexOf(i), 1);
+    	var displayCheck ;
+    	if(i.check){
+    		displayCheck = false;
+    		$scope.TaxDetailForm.totalRegFee = (parseFloat($scope.TaxDetailForm.totalRegFee)+ parseFloat(i.value)).toFixed(2);
+    	}else{
+    		displayCheck = true;
+    		$scope.TaxDetailForm.totalRegFee = (parseFloat($scope.TaxDetailForm.totalRegFee)- parseFloat(i.value)).toFixed(2);
+    	}
+    	
+    	$scope.registrationTaxData.push({ 'name':i.name, 'value': i.value, 'url':i.url, 'type': i.type, 'unit':i.unit, 'taxValue':i.taxValue, 'check':displayCheck })
+    	
+    };
+    
+    $scope.addTitleOptionalFees = function(){
+    	var selectedoptionalFee = JSON.parse($scope.TaxDetailForm.titleoptionalFee);
+    	var value = $scope.showTitleText ? $scope.TaxDetailForm.titleoptinalFeeText :selectedoptionalFee.value;
+    	
+    	$scope.titleoptionalFeesObject.push({ 'name':selectedoptionalFee.name, 'value': value, 'url':selectedoptionalFee.url, 'type': selectedoptionalFee.type, 'unit':selectedoptionalFee.unit })
+    	
+    	var totalRegFee = $scope.TaxDetailForm.totalTitleFee;
+    	 
+    	$scope.TaxDetailForm.totalTitleFee = (parseFloat(totalRegFee) + parseFloat(value)).toFixed(2);
+    	$scope.TaxDetailForm.titleoptinalFeeText = 0.0;
+    }
+    
+    $scope.removetitleOptionalFees = function (i) {
+    	//var deletedOptionalFee =  $scope.optionalFeesObject[i];
+    	$scope.TaxDetailForm.totalTitleFee = (parseFloat($scope.TaxDetailForm.totalTitleFee)- parseFloat(i.value)).toFixed(2);
+        $scope.titleoptionalFeesObject.splice($scope.titleoptionalFeesObject.indexOf(i), 1);
+    };
+    
+    
+    $scope.getUniqueZip = function() {
+    	$scope.plus4Data=null;
+    	self.countiesData=null;
+    	 var regionId=JSON.parse($scope.stateData).regionId;
+    	RuleService.getDefaultUniqueZip(regionId)
+	        .then(
+	        function(data) {
+	        	 self.zipCode = data.obj;
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+        );
+    
+};
+	$scope.getPlus4BasedOnZip = function() {
+		var zip = JSON.parse($scope.formData.zip);
+		RuleService.getPlus4BasedOnZip(zip)
+	        .then(
+	        function(data) {
+	        	$scope.plus4Data = data.obj;
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+	
+	};
+
+	$scope.getCountyData = function() {
+		$scope.stateName = JSON.parse($scope.stateData).name;
+		var plus4 = JSON.parse($scope.formData.plus4);
+    	var zip = JSON.parse($scope.formData.zip);
+    	var zipAndPlus4 = "zip="+zip+"&plus4="+plus4;
+		RuleService.getCountyData(zipAndPlus4)
+	        .then(
+	        function(data) {
+	        	self.countiesData = data.obj;
+	        	$scope.countyData = self.countiesData[0];
+	        	
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+		getVehicleMake();
+		 $scope.getPlateInfo();
+	};
+	$scope.getRegionData = function() {
+	//	self.stateData=self.countiesData[0]._region;
+	};
+    $scope.fetchLocationInfo = function() {
+    	self.controlMapping=[];
+    	self.zipCode = "";
+    	$scope.plus4Data="";
+    	
+    	var countyId = JSON.parse($scope.countyData).countyId;
+    	var state = JSON.parse($scope.stateData).regionId;
+    	var locationData = JSON.parse($scope.countyData).isLocation;
+    	RuleService.fetchLocationInfo(countyId,state).then(
+    	function (data){
+    		 self.controlMapping=data.obj;
+    		 if(state == 3 || state == 4)
+    			 self.citiesData = data.obj;
+    		 else{
+    			 self.zipCode = data.obj;
+    			 var parsezip = JSON.stringify(self.zipCode);;
+    			 $scope.zipPlus4Config.options = JSON.parse(parsezip);
+    		 }
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    	getVehicleMake(JSON.parse($scope.countyData).name);
+    };
+    
+   $scope.zipPlus4Config = {
+    	    options: [],
+    	    create: true,
+    	    maxItems: 1,
+   }
+    
+    function getVehicleMake() {
+    	
+    	
+    	RuleService.getVehicleMake().then(
+    	function (data){
+    		 self.vehicleTypeData = uniqueArraybyId(data.objList,2);
+    		 self.vehicleMakeData = uniqueArraybyId(data.objList,0);
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+    
+    $scope.getLocationInfo = function() {
+    	self.controlMapping=[];
+    	
+    	var countyId = JSON.parse($scope.countyData).countyId;
+    	RuleService.fetchLocationInfo(countyId).then(
+    	function (data){
+    		 self.controlMapping=data.obj;
+    		/* self.vehicleTypeData = uniqueArraybyId(data.objList,2);
+    		 self.vehicleMakeData = uniqueArraybyId(data.objList,0);*/
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+    
+    $scope.getPlus4Info = function() {
+    	
+    	var countyId = JSON.parse($scope.countyData).countyId;
+    	var zip = JSON.parse($scope.formData.zip);
+    	var countAndZip = "county="+countyId+"&zip="+zip;
+    	RuleService.getPlus4(countAndZip).then(
+    	function (data){
+    		$scope.plus4Data= data.obj;
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+    
+  $scope.getvehicleDetail = function() {
+    	
+    	var vehicleMake = $scope.formData.vehicleMake;
+    	RuleService.fetchVehicleInfo(vehicleMake).then(
+    	function (data){
+    		 self.vehicleData= data.obj;
+    		 $scope.uniqueVehicleData = uniqueArraybyId(data.obj,0);
+    	},function(errResponse){
+    		console.error('Error while fetching vehicle data');
+    	}		
+    	);
+    };
+    
+  $scope.getVehcileYearData = function() {
+	  
+    	$scope.yearData = $filter('filter')(self.vehicleData, function (control) {
+    		return $scope.formData.vehicleModel == control[0] ;
+	        
+	      });
+    	$scope.yearData = uniqueArraybyId($scope.yearData,1)
+    	
+    };
+    
+    
+    $scope.getVehcileTrimData = function() {
+		$scope.trimData = $filter('filter')(self.vehicleData, function (control) {
+			        
+			        return $scope.formData.vehicleModel == control[0] && $scope.formData.vehicleYear == control[1];
+			        
+			      });
+		    	$scope.formData.vehicleTrim = "";
+		    	$scope.trimData = uniqueArraybyId($scope.trimData,2)
+    };
+    
+    function uniqueArraybyId(collection, index) {
+        var output = [], 
+        keys = [];
+        angular.forEach(collection, function(item) {
+            var key = item[index];
+            if(key != '' && keys.indexOf(key) === -1) {
+            	keys.push(item[index]);
+                output.push(item);
+            }
+        });
+	  return output;
+	};
+	
+	$scope.getPlateInfo = function() {
+		$scope.zipplus4List = [];
+		$scope.formData.zipPlus4Data = '';
+		var state = JSON.parse($scope.stateData).regionId;
+    	RuleService.getPlateInfo(state).then(
+    	function (data){
+    		self.plateTypeData = data.obj;
+    		self.vehicleTypeDataList = data.objList;
+    	},function(errResponse){
+    		console.error('Error while fetching vehicle data');
+    	}		
+    	);
+    };
+    
+    $scope.setFeesType = function() {
+    	var selectedoptionalFee = JSON.parse($scope.TaxDetailForm.optinalFee);
+    	
+    	 if(selectedoptionalFee.isText){
+    		 $scope.showText = 'true';
+    		 $scope.feesDescription = selectedoptionalFee.description;
+    		 $scope.urlOptionalFee = selectedoptionalFee.url;
+    		 $scope.feesRangeValue = $scope.feesDescription && selectedoptionalFee.rangeValue ? ' - ' + selectedoptionalFee.rangeValue:selectedoptionalFee.rangeValue;
+    	 }else{
+    		 $scope.showText = null;
+    		 $scope.feesDescription = null;
+    		 $scope.feesRangeValue = null;
+    		 $scope.urlOptionalFee = selectedoptionalFee.url;
+    	 }
+    };
+    
+    $scope.setTitleFeesType = function() {
+    	var selectedoptionalFee = JSON.parse($scope.TaxDetailForm.titleoptionalFee);
+    	
+    	 if(selectedoptionalFee.description || selectedoptionalFee.rangeValue ){
+    		 $scope.showTitleText = 'true';
+    		 $scope.titlefeesDescription = selectedoptionalFee.description;
+    		 $scope.urlTitleOptionalFee = selectedoptionalFee.url;
+    		 $scope.titlefeesRangeValue = $scope.titlefeesDescription && selectedoptionalFee.rangeValue ? ' - ' + selectedoptionalFee.rangeValue:selectedoptionalFee.rangeValue;
+    	 }else{
+    		 $scope.showTitleText = null;
+    		 $scope.titlefeesDescription = null;
+    		 $scope.titlefeesRangeValue = null;
+    		 $scope.urlTitleOptionalFee = selectedoptionalFee.url;
+    	 }
+    };
+    
+    	  $scope.months = [
+    	      {"key": "null",
+    	       "value": "Select"},
+    	      {"key": "1",
+    	      "value": "Jan"},
+    	      {"key": "2",
+    	      "value": "Feb"},
+    	      {"key": "3",
+    	      "value": "Mar"},
+    	      {"key": "4",
+    	      "value": "Apr"},
+    	      {"key": "5",
+    	      "value": "May"},
+    	      {"key": "6",
+    	      "value": "Jun"},
+    	      {"key": "7",
+    	      "value": "Jul"},
+    	      {"key": "8",
+    	      "value": "Aug"},
+    	      {"key": "9",
+    	      "value": "Sep"},
+    	      {"key": "10",
+    	      "value": "Oct"},
+    	      {"key": "11",
+    	      "value": "Nov"},
+    	      {"key": "12",
+    	      "value": "Dec"}
+    	    ];
+    	    $scope.month = 'null';
+    	    
+    	    $scope.totalNonApprovedFee = 0.00;
+    	    $scope.selectedNonApprovedFee = [];
+    	    
+    /*	    $scope.selectedFees = function selectedFees() {
+    	        return filterFilter($scope.additionalOptionalFeesData, { selected: true });
+    	      };
+    	      
+    	      
+    	      $scope.$watch('additionalOptionalFeesData|filter:{selected:true}', function (nv) {
+    	    	  
+    	    	  if(nv != undefined){
+	    	    	  $scope.selectedNonApprovedFee = nv.map(function (fruit) {
+	    	    	      return fruit;
+	    	    	    });
+	    	    	    
+	    	    	    var additionalFeestValue = 0.00;
+	    	    	    $scope.selectedNonApprovedFee.forEach(function(item){
+	    	    	    	additionalFeestValue = (parseFloat(additionalFeestValue) + parseFloat(item.value)).toFixed(2);
+	    	    	    });
+	    	    	    if($scope.addAdditionalFees){
+	    	    	    	$scope.totalNonApprovedFee = (parseFloat(additionalFeestValue)).toFixed(2);
+    	    	  		}
+    	    	  }
+    	    	  }, true);*/
+    	     
+    	      this.lossDate = new Date();
+    	      this.registrationDate = new Date();
+    		  this.isOpen = false;    
+    		  $scope.zipplus4List = [];
+    		  $scope.removeNonApprovedFee = function (i) {
+    		    	//var deletedOptionalFee =  $scope.optionalFeesObject[i];
+    		    	//$scope.totalNonApprovedFee = (parseFloat($scope.totalNonApprovedFee)- parseFloat(i.value)).toFixed(2);
+    		    	//$scope.addAdditionalFees = false;
+    		    	var indexCheck = $scope.additionalOptionalFeesData.indexOf(i);
+    		        $scope.selectedNonApprovedFee.splice(indexCheck, 1);
+    		        $scope.totalofOptionalFee = (parseFloat($scope.totalofOptionalFee)- parseFloat(i.value)).toFixed(2);
+    		       // $scope.additionalOptionalFeesData[indexCheck].selected = false;
+    		    };
+    		    
+    		    $scope.updatezipPlus4 = function(typed){
+    		    	if(typed.length>4 && typed.indexOf('-') == -1){
+    		    		self.countiesData = "";
+    		    		$scope.formData.county= null;
+    		    		var regionId = JSON.parse($scope.stateData).regionId;
+	    		    	RuleService.getZIPPLUS4Info(typed,regionId).then(
+	    		    	    	function (data){
+	    		    	    		$scope.zipplus4List = data.obj;
+	    		    	    	},function(errResponse){
+	    		    	    		console.error('Error while fetching zipplus4 data');
+	    		    	    	}		
+	    		    	    	);
+	    		    	};
+    		    }
+    		    
+    		 // this function is used to generate Excel sheet of tax calculation
+    		    $scope.exportToExcel = function(divId) { // ex: '#my-div-id'
+    		    	$scope.exportHref = Excel.htmlToExcel(divId, 'Tax-Calculation'); 
+    		    	
+    		    	$timeout(function() {
+    		    		location.href = $scope.exportHref;
+    				}, 100); // trigger download
+    			};
+    			
+    			$scope.getExcelReport = function() { 
+    				
+    				self.grandTotal = parseFloat(($scope.TaxDetailForm.totalSalesFeesDataValue?$scope.TaxDetailForm.totalSalesFeesDataValue*1:0) 
+    						+ ($scope.TaxDetailForm.totalRegFee?$scope.TaxDetailForm.totalRegFee*1:0) 
+    						+ ($scope.TaxDetailForm.totalTitleFee?$scope.TaxDetailForm.totalTitleFee*1:0) + ($scope.totalofOptionalFee ? $scope.totalofOptionalFee*1:0)
+							+ ($scope.TaxDetailForm.totalTRA? $scope.TaxDetailForm.totalTRA*1:0)+($scope.totalNonApprovedFee?$scope.totalNonApprovedFee*1:0)).toFixed(2) ;
+    				$scope.reportData= {
+    						
+    					state: $scope.formData.state ? $scope.formData.state : '',
+    					zip: $scope.formData.zipPlus4Data ? $scope.formData.zipPlus4Data : '',
+    					regDate: $scope.formData.registrationDate ? $scope.formData.registrationDate : '',
+    					lossDate: $scope.formData.lossDate ? $scope.formData.lossDate : '',
+    					vehicleValue: $scope.formData.vehicleValue ? $scope.formData.vehicleValue : '',
+    					vin: $scope.formData.VIN ? $scope.formData.VIN : '',
+    					vehicleType: $scope.formData.vehicleType ? $scope.formData.vehicleType : '',
+    					vehicleTrim: $scope.formData.vehicleTrim ? $scope.formData.vehicleTrim : '',
+    					weight: $scope.formData.weight ? $scope.formData.weight : '',
+    					make: $scope.formData.vehicleMake ? $scope.formData.vehicleMake : '',
+    					model: $scope.formData.vehicleModel ? $scope.formData.vehicleModel : '',
+    					modelYear: $scope.formData.vehicleYear ? $scope.formData.vehicleYear : '',
+    					grandTotal: self.grandTotal,
+    					taxes: [
+    						$scope.salesTaxWithPercent
+    					],
+    					taxesDollar: [
+    						$scope.salesTaxWithDollar
+    					],
+    					rta: [
+    						$scope.rtaTax
+    					],
+    					titleFees: [
+    						$scope.titleFeesData
+    					],
+    					registrationFees: [
+    						$scope.registrationTaxData
+    					],
+    					titleOptionalFees: [
+    						$scope.titleoptionalFeesObject
+    					],
+    					optionalFees: [
+    						$scope.totalMandatoryOptionalData
+    					],
+    					otherOptionalFees: [
+    						$scope.optionalFeesObject,
+    						$scope.selectedNonApprovedFee
+    					]
+    						
+    				};
+    				
+    				//reference: https://stackoverflow.com/questions/31134961/downloading-excel-file-xlsx-in-angularjs-and-webapi
+    				$http.post("getExcelReport", $scope.reportData, { responseType: "arraybuffer" }).then(function (data, status, headers) {
+    			            var type = data.headers('Content-Type');
+    			            var disposition = data.headers('Content-Disposition');
+    			            if (disposition) {
+    			                var match = disposition.match(/.*filename=\"?([^;\"]+)\"?.*/);
+    			                if (match[1])
+    			                    defaultFileName = match[1];
+    			            }
+    			            defaultFileName = defaultFileName.replace(/[<>:"\/\\|?*]+/g, '_');
+    			            var blob = new Blob([data.data], { type: type });
+    			            saveAs(blob, defaultFileName);
+    			        }, function (data, status) {
+    			            var e = /* error */
+    			            console.log(e);
+    			        });
+    				};
+    		    		    
+}]);

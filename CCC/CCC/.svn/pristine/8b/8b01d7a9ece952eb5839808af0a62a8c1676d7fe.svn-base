@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<%@ include file="/common/taglibs.jsp"%>
+<html>
+<head>
+</head>
+<body>  
+  <!-- Header Start -->
+  <header class="navbar navbar-inverse navbar-fixed-top" id="header">
+    <div class="container-fluid text-center">
+      <div class="navbar-header">
+        <button aria-controls="navbar" aria-expanded="false" data-target="#navbar" data-toggle="collapse" class="navbar-toggle collapsed" type="button"> <span class="icon-bar"></span> <span class="icon-bar"></span> <span class="icon-bar"></span> </button>
+        <div class="navbar-header">
+         <a class="navbar-brand" href="<c:url value="/"/>">
+          <img src="static/images/logo.png" />
+         </a>
+        </div>
+      </div>
+      <div class="navbar-collapse collapse" id="navbar">
+       <c:if test = "${parameter == 'dashboard'}">
+	        <ul class="nav navbar-nav center-menu">
+		          <li <c:if test = "${tab == 'rulecreation'}">class="active"</c:if>>
+		          <a href="<c:url value="/rulecreation"/>">
+		          <c:if test="${param.param == null}">Rule Creation</c:if>
+		          <c:if test="${param.param == 'edit'}">Rule Edit</c:if>
+		          </a></li>
+		          <li <c:if test = "${tab == 'rulesearch'}">class="active"</c:if>><a href="<c:url value="/rulesearch"/>">Rule Search</a></li>
+		          <li <c:if test = "${tab == 'profilemgmt'}">class="active"</c:if>><a href="<c:url value="/profilemgmt"/>">Profile Management</a></li>
+		          <!-- Admin Functions -->
+		          <li <c:if test = "${tab == 'adminmgmt'}">class="active"</c:if> class="dropdown">
+					  	<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Admin Functions <span class="caret"></span></a>
+					  	<ul class="dropdown-menu">
+					  		<li><a href="<c:url value="/adminmgmt"/>">User Setup</a></li>
+					  		<li><a href="<c:url value="/ComponentConfig"/>">Client Management</a></li>
+					  		<li><a href="<c:url value="/typesofrule"/>">Define types of rule</a></li>
+					  		<li><a href="<c:url value="/defineSynid"/>">Define SynIDs </a></li>
+					  		<li><a href="<c:url value="/defineFieldComponents"/>">Define Field Components of SynIDs </a></li>
+					  		<li><a href="<c:url value="/comorbiditySynids"/>">Define Co-Morbidity SynIDs </a></li>
+					  	</ul>
+				  </li> 
+				  <!-- End of Admin Functions -->
+	        </ul>
+	        
+	        <ul id="user" class="nav navbar-nav">
+	        	<li class="logout"> <a href="<c:url value="/logout"/>">Logout <span class="glyphicon glyphicon-off" aria-hidden="true"></span></a></li>
+	        </ul>   
+      </c:if>
+      </div>
+    </div>
+  </header>
+  <!-- Header End -->
+</body>
+</html>

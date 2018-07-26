@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE urlrewrite PUBLIC "-//tuckey.org//DTD UrlRewrite 3.0//EN"
+        "http://www.tuckey.org/res/dtds/urlrewrite3.0.dtd">
+<urlrewrite>
+	<!-- All requests to root are forwarded to home page. -->
+
+	<!-- <rule> <from>/calledAdmin</from> <to type="redirect">/admin</to> </rule> -->
+	<rule>
+		<from>^/aps/loginSuccess</from>
+		<to type="redirect">/admin</to>
+	</rule>
+	<rule>
+		<condition type="user-in-role">ROLE_ADMIN</condition>
+		<from>/aps/loginSuccess</from>
+		<to type="redirect">/aps/admin**</to>
+	</rule>
+	<rule>
+		<condition type="user-in-role">ROLE_DBA</condition>
+		<from>/aps/loginSuccess/</from>
+		<to type="redirect">/aps/dba**</to>
+	</rule>
+	<!-- <rule> <from>/admin/getuserDetails/[0-9]+</from> <to type="redirect">/getuserDetails/$1</to> 
+		</rule> -->
+	<!-- Removes the /app/ prefix from href of links. NOTE: This only works 
+		if you use the jstl url tag or spring url tag. -->
+	<!-- <outbound-rule> <from>/app/**</from> <to>/$1</to> </outbound-rule> -->
+</urlrewrite>

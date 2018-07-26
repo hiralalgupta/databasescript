@@ -1,0 +1,36 @@
+package com.ccc.dao;
+
+import java.util.List;
+
+import com.ccc.model.County;
+import com.ccc.model.TaxObject;
+import com.ccc.model.VehicleInfo;
+
+public interface SaleTaxDao {
+	
+	List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType,String registrationDate);
+	List<Object[]> getTaxWithWeightInfo(Integer weight,Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getGenericTaxData(String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getCitySpecificGenericTaxData(String rName,String cName,String city,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getPlateTypeFees(String state, String plateType);
+	List<Object[]> getOptionalFees(String state);
+	List<Object[]> getOptionalFeesForCounty(String state, String county);
+	List<Object[]> getTaxandFees(String rName, String cName, String city, Integer year, String date);
+	Integer getVehicleWeight(String modelMake, String modelName, Integer modelYear, String modelTrim);
+	VehicleInfo getVehicleWeightSeat(String rName,String modleName,Integer modelYear,String modelTrim);
+	List<TaxObject> getVehicleTaxandFees(String vehicleType, int weight, String registrationDate, String totaledDate,String state,String county);
+	List<Object[]> getOptionalFeesForCities(String state, String county, Integer zip, Integer plus4);
+	List<County> getCountyData(int zip, int plus4info,String state);
+	List<Object[]> getWASaleTax(Integer plus4, Integer zip, String rName, String cName, String modelMake,
+			String modelName, Integer modelYear, String modelTrim, String plateType, String registrationDate);
+	List<Object[]> getGenericFeesData(String rName, String cName, String modelMake, String modelName, Integer modelYear,
+			String modelTrim);
+	//List<Object[]> getRegistrationFeesForGA(String vehicleType, int weight,String state,int seats);
+	List<TaxObject> getRegistrationFeesForUT(String vehicleType, int weight, String registrationDate,
+			int vehicleYear, String state, String county);
+	List<TaxObject> getRegistrationFeesForTX(String vehicleType, int weight, String registrationDate,int vehicleYear, String state, String county);
+	List<Object[]> getTXSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType,String registrationDate);
+	List<Object[]> getRegistrationFeesForGA(String vehicleType, int weight,	String rName);
+	List<Object[]> getRegistrationFeesForTN(String vehicleType, int weight,	String rName, int seats);
+	
+}

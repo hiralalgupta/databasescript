@@ -1,0 +1,264 @@
+package com.ccc.dao.impl;
+
+import java.util.List;
+
+import javax.persistence.Query;
+
+import org.hibernate.Session;
+import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
+
+import com.ccc.dao.AbstractDao;
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.model.User;
+@Repository
+public class SaleTaxDaoImpl extends AbstractDao<Long, User>  implements SaleTaxDao  {
+
+	
+	
+	@Override
+	public List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType) {
+		Session session =getSession();
+				
+		String trimData = !StringUtils.isEmpty(modelTrim)? " AND UPPER(M.TRIM) = UPPER(:modelTrim)  ORDER BY TYPE":" AND M.TRIM ='' ORDER BY TYPE";
+		
+				StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT FEE.NAME AS LABEL ,CASE WHEN FEE.NAME ='Registration Fees' THEN FEE.VALUE  WHEN FEE.NAME='Local Fee' THEN C.LOCALTAX"
+						+ " WHEN FEE.NAME='Location Rate' THEN L.LOCATIONRATE WHEN FEE.NAME='Weight Fees' THEN W.FEES ELSE FEE.VALUE END VALUE,U.VALUE AS UOM,URL, TYPE  FROM"
+						+ " (SELECT FEESNAME AS NAME,FEESVALUE VALUE,FEESURL URL,F.REGIONID,CASE WHEN F.FEESCATEGORYID=1 THEN 'TT' ELSE 'F' END AS TYPE, F.FEESCATEGORYID AS CATEGORYID,UOMID FROM FEES F "
+						+ " WHERE FEESCATEGORYID IN (1,2) AND F.FEESNAME<>'Plate Type Fees' UNION ALL SELECT NAME ,VALUE,URL,REGIONID,'T' AS TYPE, TAXCATEGORYID AS CATEGORYID,UOMID FROM TAX_T T) FEE,  UOM U,"
+						+ " (SELECT 0 AS WEIGHT_ST,0 AS WEIGHT_ED,-1 AS FEES, REGIONID FROM REGION UNION ALL SELECT 1  AS WEIGHT_ST,MIN(WEIGHT) AS WEIGHT_ED,W.FEES,W.REGIONID FROM WEIGHTFEES W  "
+						+ " WHERE REGIONID IS NOT NULL GROUP BY REGIONID UNION ALL SELECT W.WEIGHT+1 AS WEIGHT_ST,W1.WEIGHT AS WEIGHT_ED,W1.FEES,W.REGIONID FROM WEIGHTFEES W,"
+						+ " WEIGHTFEES W1 WHERE (W.WEIGHTFEESID+1)=W1.WEIGHTFEESID AND W.REGIONID=W1.REGIONID) W INNER JOIN  REGION R ON R.REGIONID=W.REGIONID INNER JOIN  COUNTY C ON  C.REGIONID=R.REGIONID"
+						+ " LEFT OUTER JOIN LOCATION L ON L.COUNTYID=C.COUNTYID LEFT OUTER JOIN MODELS M ON M.WEIGHT_POUND BETWEEN W.WEIGHT_ST AND  W.WEIGHT_ED INNER JOIN MODELMAKE MM ON MM.MODELMAKEID=M.MODELMAKEID"
+						+ " INNER JOIN VEHICLEMODELS VM ON VM.VEHICLEMODELID=M.VEHICLEMODELID "
+						+ " WHERE FEE.REGIONID=W.REGIONID AND U.UOMID=FEE.UOMID  AND UPPER(R.NAME)=UPPER(:rName) AND UPPER(C.NAME)=UPPER(:cName) AND UPPER(MM.MODELMAKE)=UPPER(:modelMake)"
+						+ " AND UPPER(VM.MODELNAME)=UPPER(:modelName) AND M.YEAR=:modelYear AND L.PLUS4=:plus4  AND L.ZIP=:zip ").append(trimData);
+		
+		
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("rName", rName);
+		query.setParameter("cName", cName);
+		query.setParameter("plus4", plus4);
+		query.setParameter("zip", zip);
+		query.setParameter("modelMake", modelMake);
+		query.setParameter("modelName", modelName);
+		query.setParameter("modelYear", modelYear);
+		if(!StringUtils.isEmpty(modelTrim))
+			query.setParameter("modelTrim", modelTrim);
+		List<Object[]> list=query.getResultList();
+		return list;
+		
+	}
+
+	@Override
+	public List<Object[]> getTaxWithWeightInfo(Integer weight, Integer plus4,
+			Integer zip, String rName, String cName, String modelMake,
+			String modelName, Integer modelYear, String modelTrim,
+			String plateType) {
+		
+		Session session =getSession();
+		
+		String trimData = !StringUtils.isEmpty(modelTrim)? " AND UPPER(M.TRIM)=UPPER(:modelTrim) LIMIT 1":" AND M.TRIM ='' LIMIT 1";
+		String plateT = !StringUtils.isEmpty(plateType)? " AND UPPER(F.FEESNAME)=UPPER(:plateType) ":" ";
+		
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT  L.LOCATIONRATE,RTA,T.RATE AS SALES_TAX,FEES.REGISTRATIONFEES,FEES.VEHICLEFEES, FEES.TITLEFEES,"
+				+ "CASE WHEN "+weight+" BETWEEN W.WEIGHT_ST AND  W.WEIGHT_ED  THEN W.FEES  WHEN M.WEIGHT_POUND!=0  THEN 0  WHEN M.WEIGHT_POUND=0   THEN (SELECT FEES FROM WEIGHTFEES WHERE WEIGHT >= "+weight+" ORDER BY WEIGHTFEESID ASC LIMIT 1 )END "
+				+ "AS WEIGHTFEES, F.FEESVALUE AS PLATETYPEFEES, FEES.VEHICLEIDENTIFICATIONNUMBER, T.LOCATIONRATEURL,T.SALETAXURL,T.RTAURL,FEES.TITLEFEESURL,FEES.REGISTRATIONFEESURL,FEES.VEHICLETYPEURL,FEES.WEIGHTURL,"
+				+ "F.FEESURL AS PLATETYPEFEESURL,FEES.VINURL, IFNULL((SELECT WEIGHT_PARAMETER FROM (SELECT weight.*, @i\\:=@i+1 AS WEIGHT_PARAMETER FROM (SELECT 0 AS WEIGHT_ST,0 AS WEIGHT_ED,-1 AS FEES,(SELECT REGIONID FROM REGION) AS REGIONID"
+				+ "  UNION ALL SELECT 1 AS WEIGHT_ST,4000 AS WEIGHT_ED,53 AS FEES,(SELECT REGIONID FROM REGION) AS REGIONID  UNION ALL  SELECT W.WEIGHT+1 AS WEIGHT_ST,W1.WEIGHT AS WEIGHT_ED,W1.FEES,W.REGIONID FROM WEIGHTFEES W, "
+				+ " WEIGHTFEES W1 WHERE (W.WEIGHTFEESID+1)=W1.WEIGHTFEESID) weight, (SELECT @i\\:=-1) AS WEIGHT_PARAMETER) W_PARAMETER WHERE ("+weight+" BETWEEN W_PARAMETER.WEIGHT_ST AND  W_PARAMETER.WEIGHT_ED) AND  W_PARAMETER.REGIONID=W.REGIONID) "
+				+ " -(SELECT WEIGHTFEESID FROM WEIGHTFEES WF WHERE WF.FEES=W.FEES),-1) AS WEIGHT_PARAMETER  FROM ( SELECT 0 AS WEIGHT_ST,0 AS WEIGHT_ED,-1 AS FEES,(SELECT REGIONID FROM REGION) AS REGIONID  UNION ALL"
+				+ "  SELECT 1 AS WEIGHT_ST,4000 AS WEIGHT_ED,53 AS FEES,(SELECT REGIONID FROM REGION) AS REGIONID UNION ALL SELECT W.WEIGHT+1 AS WEIGHT_ST,W1.WEIGHT AS WEIGHT_ED,W1.FEES,W.REGIONID FROM WEIGHTFEES W, WEIGHTFEES W1 "
+				+ "WHERE (W.WEIGHTFEESID+1)=W1.WEIGHTFEESID AND W.REGIONID=W1.REGIONID) W INNER JOIN REGION R ON R.REGIONID=W.REGIONID INNER JOIN COUNTY C ON C.REGIONID=R.REGIONID INNER JOIN LOCATION L ON L.COUNTYID=C.COUNTYID"
+				+ " LEFT OUTER JOIN MODELS M ON M.WEIGHT_POUND BETWEEN W.WEIGHT_ST AND  W.WEIGHT_ED INNER JOIN MODELMAKE MM ON MM.MODELMAKEID=M.MODELMAKEID INNER JOIN VEHICLEMODELS VM ON VM.VEHICLEMODELID=M.VEHICLEMODELID"
+				+ " LEFT OUTER JOIN TAX T ON L.REGIONID=T.TOREGIONID INNER JOIN (SELECT  TIT.REGIONID,TITLEFEES,TITLEFEESURL,REGISTRATIONFEES,REGISTRATIONFEESURL,VEHICLEFEES,VEHICLETYPEURL,WEIGHTFEES,WEIGHTURL,VEHICLEIDENTIFICATIONNUMBER,"
+				+ "VINURL FROM (SELECT FEESVALUE TITLEFEES,REGIONID,FEESURL TITLEFEESURL FROM FEES WHERE FEESID=1) TIT, (SELECT FEESVALUE REGISTRATIONFEES,REGIONID,FEESURL REGISTRATIONFEESURL FROM FEES WHERE FEESID=2) REG,"
+				+ "(SELECT FEESVALUE VEHICLEFEES,REGIONID,FEESURL VEHICLETYPEURL FROM FEES WHERE FEESID=3) VEH, (SELECT FEESVALUE WEIGHTFEES,REGIONID,FEESURL WEIGHTURL FROM FEES WHERE FEESID=4) WEI,"
+				+ " (SELECT FEESVALUE VEHICLEIDENTIFICATIONNUMBER,REGIONID,FEESURL VINURL FROM FEES WHERE FEESID=6) VIN WHERE REG.REGIONID=TIT.REGIONID AND REG.REGIONID=VEH.REGIONID AND REG.REGIONID=WEI.REGIONID"
+				+ " AND REG.REGIONID=VIN.REGIONID) FEES ON FEES.REGIONID=R.REGIONID INNER JOIN FEES F ON F.REGIONID=R.REGIONID AND F.FEESCATEGORYID=4 WHERE W.WEIGHT_ST IS NOT NULL AND UPPER(R.NAME)=UPPER(:rName)"
+				+ " AND UPPER(C.NAME)=UPPER(:cName) AND L.PLUS4=:plus4 AND L.ZIP=:zip AND UPPER(MM.MODELMAKE)=UPPER(:modelMake) "
+				+ " AND UPPER(VM.MODELNAME)=UPPER(:modelName) AND M.YEAR=:modelYear ").append(plateT).append(trimData);
+
+
+		
+			System.out.println("QUERY "+sqlAppender.toString());
+			@SuppressWarnings("deprecation")
+			Query query=session.createNativeQuery(sqlAppender.toString());
+			query.setParameter("rName", rName);
+			query.setParameter("cName", cName);
+			query.setParameter("plus4", plus4);
+			query.setParameter("zip", zip);
+			query.setParameter("modelMake", modelMake);
+			query.setParameter("modelName", modelName);
+			query.setParameter("modelYear", modelYear);
+			if(!StringUtils.isEmpty(plateType))
+				query.setParameter("plateType", plateType);
+			if(!StringUtils.isEmpty(modelTrim))
+				query.setParameter("modelTrim", modelTrim);
+			List<Object[]> list=query.getResultList();
+			return list;
+
+	}
+	
+	
+	@Override
+	public List<Object[]> getGenericTaxData(String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType) {
+		Session session =getSession();
+				
+		String trimData = !StringUtils.isEmpty(modelTrim)? " AND UPPER(M.TRIM)=UPPER(:modelTrim) ORDER BY TYPE":" AND M.TRIM ='' ORDER BY TYPE";
+		
+				StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT FEE.NAME ,CASE WHEN FEE.NAME ='Registration Fees' THEN W.FEES WHEN FEE.NAME='Local Fee' THEN C.LOCALTAX"
+						+ " WHEN FEE.NAME='Location Rate' THEN L.LOCATIONRATE ELSE FEE.VALUE END VALUE,U.VALUE AS UNIT,URL, TYPE  FROM"
+						+ " (SELECT FEESNAME AS NAME,FEESVALUE VALUE,FEESURL URL,F.REGIONID,'F' AS TYPE, F.FEESCATEGORYID AS CATEGORYID,UOMID FROM FEES F WHERE FEESCATEGORYID IN (1,2) UNION ALL"
+						+ " SELECT NAME ,VALUE,URL,REGIONID,'T' AS TYPE, TAXCATEGORYID AS CATEGORYID,UOMID FROM TAX_T T) FEE,  UOM U,"
+						+ " (SELECT 0 AS WEIGHT_ST,0 AS WEIGHT_ED,-1 AS FEES, REGIONID FROM REGION UNION ALL SELECT 1  AS WEIGHT_ST,MIN(WEIGHT) AS WEIGHT_ED,W.FEES,W.REGIONID FROM WEIGHTFEES W"
+						+ " WHERE REGIONID IS NOT NULL GROUP BY REGIONID UNION ALL SELECT W.WEIGHT+1 AS WEIGHT_ST,W1.WEIGHT AS WEIGHT_ED,W1.FEES,W.REGIONID FROM WEIGHTFEES W,"
+						+ " WEIGHTFEES W1 WHERE (W.WEIGHTFEESID+1)=W1.WEIGHTFEESID AND W.REGIONID=W1.REGIONID) W INNER JOIN  REGION R ON R.REGIONID=W.REGIONID"
+						+ " INNER JOIN  COUNTY C ON  C.REGIONID=R.REGIONID LEFT OUTER JOIN LOCATION L ON L.COUNTYID=C.COUNTYID LEFT OUTER JOIN MODELS M ON M.WEIGHT_POUND BETWEEN W.WEIGHT_ST AND  W.WEIGHT_ED"
+						+ " INNER JOIN MODELMAKE MM ON MM.MODELMAKEID=M.MODELMAKEID INNER JOIN VEHICLEMODELS VM ON VM.VEHICLEMODELID=M.VEHICLEMODELID"
+						+ " WHERE FEE.REGIONID=W.REGIONID AND U.UOMID=FEE.UOMID AND UPPER(R.NAME)=UPPER(:rName) AND UPPER(C.NAME)=UPPER(:cName) AND UPPER(MM.MODELMAKE)=UPPER(:modelMake) "
+						+ " AND UPPER(VM.MODELNAME)=UPPER(:modelName) AND M.YEAR=:modelYear ").append(trimData);
+				
+							
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("rName", rName);
+		query.setParameter("cName", cName);
+		query.setParameter("modelMake", modelMake);
+		query.setParameter("modelName", modelName);
+		query.setParameter("modelYear", modelYear);
+		if(!StringUtils.isEmpty(modelTrim))
+			query.setParameter("modelTrim", modelTrim);
+		List<Object[]> list=query.getResultList();
+		return list;
+		
+	}
+
+	@Override
+	public List<Object[]> getCitySpecificGenericTaxData(String rName,
+			String cName, String city, String modelMake, String modelName,
+			Integer modelYear, String modelTrim, String plateType) {
+		Session session =getSession();
+		
+		String trimData = !StringUtils.isEmpty(modelTrim)? " AND UPPER(M.TRIM)=UPPER(:modelTrim) AND T.VALUE IS NOT NULL ORDER BY TYPE":" AND T.VALUE IS NOT NULL AND M.TRIM ='' ORDER BY TYPE";
+		
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT LABEL, T.VALUE ,U.VALUE AS UOM, T.URL,TYPE, M.weight_pound FROM (SELECT NAME AS LABEL,CASE WHEN T.ISCOUNTYCITY='Y' THEN CT.VALUE ELSE T.VALUE END AS VALUE,URL AS URL,REGIONID,"
+				+ " 'T' AS TYPE,T.UOMID,CT.COUNTYID,CT.CITYID,0 AS FEESCATEGORYID  FROM TAX_T T LEFT OUTER JOIN COUNTYCITYTAX CT ON CT.TAXID=T.TAXID AND CT.COUNTYID=(SELECT COUNTYID FROM COUNTY C WHERE C.NAME =UPPER(:cName))"
+				+ " AND CT.CITYID=(SELECT CITYID FROM CITY C WHERE C.NAME =UPPER(:city)) UNION ALL SELECT FEESNAME AS LABEL, FEESVALUE AS VALUE, FEESURL AS URL, F.REGIONID,CASE WHEN FEESCATEGORYID=1 THEN 'TT' ELSE 'F' "
+				+ " END AS TYPE,UOMID,C.COUNTYID,CITYID,FEESCATEGORYID FROM FEES F LEFT JOIN COUNTY C ON F.REGIONID=C.REGIONID LEFT JOIN CITY CI ON CI.COUNTYID=C.COUNTYID WHERE FEESCATEGORYID IN (1,2) AND "
+				+ " FEESNAME NOT IN ('Weight Fees','Vehicle Type Fees','Vehicle Identification No. Fees') UNION ALL SELECT V.FEESNAME AS LABEL, V.FEES AS VALUE, V.URL, V.REGIONID, 'F' AS TYPE,UOMID,C.COUNTYID,CITYID,V.FEESCATEGORYID"
+				+ "  FROM FEESCATEGORY F INNER JOIN VEHICLEAGE V ON V.FEESCATEGORYID=F.FEESCATEGORYID LEFT JOIN COUNTY C ON V.REGIONID=C.REGIONID LEFT JOIN CITY CI ON CI.COUNTYID=C.COUNTYID WHERE F.FEESCATEGORYID=6 AND "
+				+ " (:modelYear BETWEEN MODELYEARSTART AND  MODELYEAREND)  ) T INNER JOIN UOM U ON U.UOMID=T.UOMID INNER JOIN VEHICLEAGE V ON V.REGIONID=T.REGIONID "
+				+ " LEFT OUTER JOIN MODELS M ON M.YEAR BETWEEN V.MODELYEARSTART AND  V.MODELYEAREND INNER JOIN MODELMAKE MM ON MM.MODELMAKEID=M.MODELMAKEID INNER JOIN VEHICLEMODELS VM ON VM.VEHICLEMODELID=M.VEHICLEMODELID"
+				+ " WHERE T.REGIONID=(SELECT REGIONID FROM REGION R WHERE R.NAME =UPPER(:rName)) AND UPPER(MM.MODELMAKE)=UPPER(:modelMake) AND UPPER(VM.MODELNAME)=UPPER(:modelName) AND M.YEAR=:modelYear ").append(trimData);
+							
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("rName", rName);
+		query.setParameter("cName", cName);
+		query.setParameter("city", city);
+		query.setParameter("modelMake", modelMake);
+		query.setParameter("modelName", modelName);
+		query.setParameter("modelYear", modelYear);
+		if(!StringUtils.isEmpty(modelTrim))
+			query.setParameter("modelTrim", modelTrim);
+		List<Object[]> list=query.getResultList();
+		return list;
+	}
+
+	@Override
+	public List<Object[]> getPlateTypeFees(String state, String plateType) {
+		Session session =getSession();
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT CASE WHEN F.MANUFATCUREFEES IS NOT NULL THEN FSC.FEESNAME ELSE FC.FEESNAME END AS LABEL, CASE WHEN F.MANUFATCUREFEES " + 
+				" IS NOT NULL AND FSC.CODE='MF' THEN F.MANUFATCUREFEES ELSE F.FEESVALUE END AS VALUE,U.VALUE AS UOM,FEESURL AS URL,FC.CODE TYPE " + 
+				" FROM FEESCATEGORY FC LEFT OUTER JOIN FEESCATEGORY FSC ON FC.FEESCATEGORYID=FSC.FEESSUBCATEGORYID ,FEES F,UOM U,REGION R" + 
+				" WHERE FC.FEESCATEGORYID=4 AND F.FEESCATEGORYID = FC.FEESCATEGORYID AND F.UOMID=U.UOMID AND R.REGIONID=F.REGIONID AND " + 
+				" R.NAME= UPPER(:state) AND F.FEESNAME=:plateType ");
+							
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("state", state);
+		query.setParameter("plateType", plateType);
+		List<Object[]> res=query.getResultList();
+		return res;
+	}
+
+	@Override
+	public List<Object[]> getOptionalFees(String state) {
+		Session session =getSession();
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT F.FEESNAME AS LABEL,F.FEESVALUE AS VALUE,U.VALUE AS UOM, F.FEESURL AS URL, CTF.CODE AS TYPE,"
+				+ " F.DESCRIPTION,CONCAT(INTIALFEE,'-',LASTFEE) AS RANGEVALUE, F.status"
+				+ " FROM REGION R,UOM U ,FEES F INNER JOIN FEESCATEGORY CTF ON CTF.FEESCATEGORYID=F.FEESCATEGORYID"
+				+ " WHERE  UPPER(R.NAME) = UPPER(:state) AND NOT EXISTS (SELECT 1 FROM  COUNTYFEES CF WHERE CF.FEESID=F.FEESID)"
+				+ " AND CTF.FEESCATEGORYID IN (5,7) AND R.REGIONID =F.REGIONID AND U.UOMID=F.UOMID");
+							
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("state", state);
+		List<Object[]> res=query.getResultList();
+		return res;
+	}
+
+	@Override
+	public List<Object[]> getOptionalFeesForCounty(String state, String county) {
+		Session session =getSession();
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT F.FEESNAME AS LABEL,F.FEESVALUE AS VALUE,U.VALUE AS UOM, F.FEESURL AS URL, CTF.CODE AS TYPE,"
+				+ " F.DESCRIPTION,CONCAT(INTIALFEE,'-',LASTFEE) AS RANGEVALUE, F.status"
+				+ " FROM REGION R,UOM U ,FEES F INNER JOIN FEESCATEGORY CTF ON CTF.FEESCATEGORYID=F.FEESCATEGORYID WHERE  UPPER(R.NAME) = UPPER(:state)"
+				+ " AND EXISTS (SELECT 1 FROM  COUNTYFEES CF WHERE CF.FEESID=F.FEESID AND EXISTS (SELECT 1 FROM COUNTY CC WHERE UPPER(CC.NAME)=UPPER(:county) AND CC.COUNTYID=CF.COUNTYID ))"
+				+ " AND CTF.FEESCATEGORYID IN (5,7) AND R.REGIONID =F.REGIONID AND U.UOMID=F.UOMID");
+							
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		query.setParameter("state", state);
+		query.setParameter("county", county);
+		List<Object[]> res=query.getResultList();
+		return res;
+	}
+
+	@Override
+	public List<Object[]> getTaxandFees(String rName, String cName, String city,Integer year, String date) {
+		Session session =getSession();
+		String cityCheck = StringUtils.isEmpty(city) ? "C.Cityid IS NULL" : "UPPER(C.NAME)=UPPER(:city)" ; 
+			
+			StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT ID, FEE.NAME , FEE.VALUE ,U.VALUE AS UNIT,URL, TYPE  FROM  UOM U,(SELECT F.FEESID AS ID,FEESNAME AS NAME,FEESVALUE VALUE,FEESURL URL,F.REGIONID,'F' AS TYPE, F.FEESCATEGORYID AS CATEGORYID,UOMID " + 
+					"FROM FEES F WHERE FEESCATEGORYID IN (1,2) " + 
+					"UNION ALL " + 
+					"SELECT T.TAXID AS ID, T.NAME ,COALESCE(T.VALUE,CTC.VALUE),T.URL,T.REGIONID,'T' AS TYPE, T.TAXCATEGORYID AS CATEGORYID,T.UOMID FROM TAX_T T " + 
+					"LEFT OUTER JOIN " + 
+					"(SELECT CCT.TAXID,CCT.VALUE " + 
+					"FROM COUNTYCITYTAX CCT " + 
+					"LEFT OUTER JOIN COUNTY CO ON CO.COUNTYID=CCT.COUNTYID " + 
+					"LEFT OUTER JOIN CITY C ON C.CITYID=CCT.CITYID AND CO.COUNTYID=C.COUNTYID  WHERE UPPER(CO.NAME)=UPPER(:cName) AND "+cityCheck+" ) CTC ON "
+					+ " CTC.TAXID=T.TAXID " + 
+					"LEFT OUTER JOIN MODELS M ON M.YEAR BETWEEN YEAR(T.START_PERIOD) AND  YEAR(T.END_PERIOD) " + 
+					"WHERE  M.YEAR=:year AND (:date BETWEEN START_PERIOD AND END_PERIOD) " + 
+					") FEE " + 
+					"INNER JOIN  REGION R ON R.REGIONID=FEE.REGIONID " + 
+					" LEFT OUTER JOIN COUNTYCITYTAX CCT ON CCT.TAXID=FEE.ID AND TYPE='T' " + 
+					"WHERE  U.UOMID=FEE.UOMID AND UPPER(R.NAME)=UPPER(:rName)");
+			
+						
+	System.out.println("QUERY "+sqlAppender.toString());
+	@SuppressWarnings("deprecation")
+	Query query=session.createNativeQuery(sqlAppender.toString());
+	query.setParameter("rName", rName);
+	query.setParameter("cName", cName);
+	query.setParameter("date", date);
+	query.setParameter("year", year);
+	if(!StringUtils.isEmpty(city)) {
+		query.setParameter("city", city);
+	}
+	List<Object[]> list=query.getResultList();
+	return list;
+	}
+	
+
+}

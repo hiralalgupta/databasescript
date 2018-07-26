@@ -1,0 +1,9 @@
+package com.ccc.dao;
+
+import java.util.List;
+
+public interface SaleTaxDao {
+	
+	List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear);
+
+}

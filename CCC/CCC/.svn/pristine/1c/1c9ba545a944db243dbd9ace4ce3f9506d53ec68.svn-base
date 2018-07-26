@@ -1,0 +1,16 @@
+jdbc.driverClassName = ${jdbc.driverClassName}
+jdbc.url = ${jdbc.url}
+jdbc.username = ${jdbc.username}
+jdbc.password = ${jdbc.password}
+hibernate.dialect = ${hibernate.dialect}
+hibernate.show_sql = ${hibernate.show_sql}
+hibernate.format_sql = ${hibernate.format_sql}
+hibernate.batch.size=20
+hibernate.current.session.context.class=thread
+jwt.header=Authorization
+jwt.secret=random_secret_key
+# 15 minute
+jwt.expiration=900000
+jwt.route.authentication.path=auth 
+jwt.route.authentication.refresh=refresh
+

@@ -1,0 +1,37 @@
+package com.ccc.dao.impl;
+
+import java.util.List;
+
+import javax.persistence.Query;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ccc.dao.AbstractDao;
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.model.User;
+@Repository
+public class SaleTaxDaoImpl extends AbstractDao<Long, User>  implements SaleTaxDao  {
+
+	
+	
+	@Override
+	public List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName) {
+		Session session =getSession();
+		StringBuilder sqlAppender=new StringBuilder("SELECT DISTINCT LOCATIONRATE,RTA,RATE AS SALES_TAX,3 AS REGISTRATIONFEES,15 AS VEHICLEFEES,");
+		sqlAppender.append("30 AS TITLEFEES,25 AS WEIGHTFEES, 10 AS PLATETYPEFEES, 15 AS VEHICLEIDENTIFICATIONNUMBER FROM LOCATION L inner join REGION R ON ");
+		sqlAppender.append( "L.REGIONID=L.REGIONID LEFT OUTER JOIN COUNTY CU ON CU.COUNTYID=L.COUNTYID LEFT OUTER JOIN CITY C ON C.CITYID=L.CITYID LEFT OUTER JOIN TAX T ON L.REGIONID=T.TOREGIONID ");
+		sqlAppender.append(" where L.PLUS4="+plus4+" AND L.ZIP="+zip+" AND UPPER(CU.NAME)=UPPER('"+cName+"') AND UPPER(R.NAME)=UPPER('"+rName+"') ");
+		
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		List<Object[]> list=query.getResultList();
+		return list;
+		
+	}
+
+}

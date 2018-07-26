@@ -1,0 +1,99 @@
+package com.ccc.webapp.controller;
+
+import java.io.IOException;
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+
+import com.ccc.jsonview.AjaxResponseBody;
+import com.ccc.model.TaxObject;
+import com.ccc.service.SaleTaxService;
+import com.fasterxml.jackson.core.JsonParseException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+
+@Controller
+public class TaxCalculatorController {
+	
+	@Autowired
+	SaleTaxService saleTaxService;
+	
+	 @Autowired
+	 Environment environment;
+	
+	ObjectMapper mapper = new ObjectMapper();
+	
+	@RequestMapping(value= "/taxCalculator", method=RequestMethod.POST,consumes=MediaType.ALL_VALUE,produces=MediaType.APPLICATION_JSON_UTF8_VALUE )
+	public @ResponseBody AjaxResponseBody<String, Object> getTaxInformation(@RequestBody String json) throws JsonParseException, JsonMappingException, IOException{
+		System.out.println("fetching json value...");
+		ObjectNode node = mapper.readValue(json, ObjectNode.class);
+		Integer vehicleValue = Integer.valueOf(node.get("vehicleValue").textValue()); 
+		Integer modelYear = Integer.parseInt(node.get("vehicleYear").textValue()); 
+		String registrationDate = node.get("registrationDate").textValue();
+		
+		DecimalFormat df = new DecimalFormat("#.00");
+		AjaxResponseBody<String, Object> res =  new AjaxResponseBody<>();
+		String rName=node.get("state").textValue();
+		if(rName.equals("WA")){
+			List<TaxObject>  list=saleTaxService.getTaxes(node); 
+			List<TaxObject>  percentlist= list.stream().filter(tax -> tax.getUnit().equals("%")).map(tax -> 
+			{double taxVal = 0.0;
+			 if(tax.getName().equals("RTA")) {
+					Integer totaledYear =Integer.valueOf(registrationDate.substring(registrationDate.lastIndexOf("/")+1));
+					int yearOfService = totaledYear-modelYear+1;
+					if(yearOfService>13)
+						yearOfService=13;
+					int depreciatedPercentage = Integer.valueOf(environment.getRequiredProperty("WA.yearofservice."+yearOfService));
+					double depreciatedValue = Double.valueOf(vehicleValue)*depreciatedPercentage/100;			
+					taxVal = depreciatedValue*Double.valueOf(tax.getValue())/100;
+			 }else
+				 taxVal= Double.valueOf(vehicleValue)*Double.valueOf(tax.getValue())/100;
+				 
+			tax.setTaxValue(df.format(taxVal));
+			return tax;
+			}).collect(Collectors.toList());
+			
+			List<TaxObject>  dollarlist= list.stream().filter(tax -> tax.getUnit().equals("$")).map(tax -> {
+				double taxVal = Double.valueOf(tax.getValue());
+				tax.setValue(df.format(taxVal));
+				return tax;}).collect(Collectors.toList());
+
+			List<TaxObject>  newlist = new ArrayList<TaxObject>();
+			newlist.addAll(percentlist);
+			newlist.addAll(dollarlist);
+			double totalSalesTax = percentlist.parallelStream().map(TaxObject::getTaxValue).mapToDouble(Double:: parseDouble).reduce(0.00,(a,b) -> a+b);
+			
+			TaxObject tax = new TaxObject();
+			tax.setName("Total Sales tax");
+			tax.setValue(String.valueOf(df.format(totalSalesTax)));
+			tax.setUnit("$");
+			tax.setType("TST");
+			newlist.add(tax);
+			
+			res.setObj(newlist);
+		} else if(rName.equals("UT")){
+			List<TaxObject> taxData =  saleTaxService.getCitySpecificGenericTaxData(node);
+			res.setObj(taxData);
+		} else if(rName.equals("GA")){
+			List<TaxObject> taxData =  saleTaxService.getAddressGenericTaxData(node);
+			res.setObj(taxData);
+		}else{
+			List<TaxObject> taxData =  saleTaxService.getGenericTaxData(node);
+			res.setObj(taxData);
+		}
+		return res;
+	}
+
+}

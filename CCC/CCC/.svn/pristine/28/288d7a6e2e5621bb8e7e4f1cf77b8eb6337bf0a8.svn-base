@@ -1,0 +1,422 @@
+var app = angular.module('myapp');
+
+app.controller('RuleController', ['$rootScope','$scope','$timeout','RuleService','$compile',"$window",function($rootScope,$scope, $timeout, RuleService,$compile,$window) {
+    var self = this;
+    self.clientInfo=[];
+    self.ruleInfo=[];
+    self.tabId = '';
+    $scope.formData={};
+    self.controlMapping=[];
+    self.controlFirstCompFilteredObj="";
+    self.controlSecondCompFilteredObj="";
+    self.ruleFields="";
+    self.operatorList="";
+    self.secondaryClientSynIds ="";
+    self.secondaryClientSynIdsStatus=[];
+    self.saveMessage = "";
+    
+ 
+    $scope.fetchRulesForClient = function() {
+    	
+        var clientId = $scope.formData.CLIENTID!= null ? $scope.formData.CLIENTID : 0;
+        
+        RuleService.fetchRulesForClient(clientId)
+	        .then(
+	        function(data) {
+	        	 self.ruleInfo= data.obj;
+	        	 if (data.obj.length > 0)
+	        		 $scope.setRuleInfo(data);
+	        	 self.secondaryClientSynIds = data.mapList.secondaryClientSynIds;
+	        	
+	        	 /** Code for creating category accordion -- Start -- **/
+	        	 var accordionhtml = buildAccodionCategory(clientId,""); 
+		         $('#accordion-div').html($compile(accordionhtml)($scope));
+		         $('[ng-click^="fetchComponent"]').css('color','rgb(0, 227, 255)');
+		         var amenuOptions = {menuId: "accordion", linkIdToMenuHtml: null, expand: "single", speed: 200, license: "2a8e9"};
+				 McAcdnMenu(amenuOptions);
+				 /** --  End --- **/
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+        
+    };
+
+    $scope.defaultRulesForClient = function() {
+    	var urlParam = $window.location.search;
+    	var paramValue = getParameterInURL("param",urlParam);
+    	if (paramValue == null){
+	        RuleService.fetchRulesForClient(0)
+		        .then(
+		        function(data) {
+		        	self.clientInfo=data.mapList.clientInfo;
+		          	$scope.formData.CLIENTID = self.clientInfo[0].clientId;
+		          	if (data.obj.length > 0)
+		          		$scope.setRuleInfo(data);
+		        	
+		        	self.ruleFields = data.mapList.ruleFields;
+		        	$scope.formData.TIMEFRAME = self.ruleFields.timeframe[0];
+		        	$scope.formData.GENDER = self.ruleFields.gender[0];
+		        	$scope.formData.AGE_OPERATOR = self.ruleFields.ageThreshold[0];
+		        	$scope.formData.CONTROL_1_OPERATOR=self.ruleFields.ageThreshold[0];
+		        	$scope.formData.CONTROL_2_OPERATOR=self.ruleFields.ageThreshold[0];
+		        	self.operatorList=self.ruleFields.ageThreshold;
+		        	self.operatorList.push("IS Null");
+		        	self.operatorList.push("IS Not Null");
+		        	self.secondaryClientSynIds = data.mapList.secondaryClientSynIds;
+		        	self.secondaryClientSynIdsStatus.push("Exists");
+		        	self.secondaryClientSynIdsStatus.push("Not Exists");
+		        	
+		        	/** Code for creating category accordion --  Start --- **/
+		        	var accordionhtml = buildAccodionCategory(self.clientInfo[0].clientId,""); //'<button  class="btn btn-primary" data-ng-click="fetchControlMapping()">ABCD Message</button>';//
+		        	$('#accordion-div').html($compile(accordionhtml)($scope));
+		        	$('[ng-click^="fetchComponent"]').css('color','rgb(0, 227, 255)');
+		        	var amenuOptions = {menuId: "accordion", linkIdToMenuHtml: null, expand: "single", speed: 200, license: "2a8e9"};
+					McAcdnMenu(amenuOptions);
+					/** --  End --- **/
+		        },
+		        function(errResponse){
+		            console.error('Error while fetching Users');
+		        }
+	        );
+    	}else{
+    		var ruledata = $window.sessionStorage.getItem('key.ruleData');
+    		ruledata = JSON.parse(ruledata);
+    		RuleService.editRule(ruledata[6])
+	        .then(
+	        function(data) {
+	        	self.clientInfo=data.mapList.clientInfo;
+	        	$scope.formData.CLIENTID = ruledata[6];
+	        	$scope.selectedClient = ruledata[6];
+	        	self.ruleInfo= data.obj;
+	            $scope.formData.RULE_NAME = ruledata[1];
+	            $scope.formData.RTID = ruledata[0];
+	            $scope.selectedRule = ruledata[0];
+	            
+	            self.ruleFields = data.mapList.ruleFields;
+	        	$scope.formData.TIMEFRAME = self.ruleFields.timeframe[0];
+	        	$scope.selectedTimeframe = ruledata[8];
+	        	$scope.formData.GENDER = self.ruleFields.gender[0];
+	        	$scope.selectedGender = ruledata[9];
+	        	$scope.formData.AGE_OPERATOR = self.ruleFields.ageThreshold[0];
+	        	$scope.selectedAgeThreshold = ruledata[10];
+	        	$scope.formData.AGE = ruledata[11];
+	        	
+	        	self.secondaryClientSynIds = data.mapList.secondaryClientSynIds;
+	        	$scope.selectedSID_2 = ruledata[12];
+	        	$scope.selectedSID_3 = ruledata[14];
+	        	self.secondaryClientSynIdsStatus.push("Exists");
+	        	self.secondaryClientSynIdsStatus.push("Not Exists");
+	        	$scope.selectedSTATUS_SYNID_2 = ruledata[13];
+	        	$scope.selectedSTATUS_SYNID_3 = ruledata[15];
+	        	
+	        	$scope.formData.MESSAGE = ruledata[3];
+	        	$scope.formData.NOTES = ruledata[4];
+	        	
+	        	$scope.showCategory = ruledata[2];
+	        	//TO DO Task for Impairment 1 
+	        	var contols = autoFetchComponent(ruledata[22]);
+	        	$scope.selectedCONTROLID_1 = ruledata[16];
+	        	$scope.selectedCONTROLID_2 = ruledata[19];
+	        	
+	            $scope.searchedValue = ruledata[5];
+	            var accordionhtml = buildAccodionCategory(ruledata[6],ruledata[5]); 
+	        	$('#accordion-div').html($compile(accordionhtml)($scope));
+	        	$('.caret').addClass("active");
+	        	$('#synId'+ruledata[22]).css('color','red'); 
+	        	//var amenuOptions = {menuId: "accordion", linkIdToMenuHtml: null, expand: "single", speed: 200, license: "2a8e9"};
+	    		//McAcdnMenu(amenuOptions);
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+    	}
+        
+    };
+    
+    $scope.setRuleInfo = function(data){
+    	self.ruleInfo= data.obj;
+        $scope.formData.RULE_NAME = self.ruleInfo[0].ruleType;
+        $scope.formData.RTID = self.ruleInfo[0].rtId;
+        $scope.selectedRule = self.ruleInfo[0].rtId;
+    }
+    
+    $scope.tabChanged = function(newValue){
+    	$scope.tabId = newValue;
+    }
+    
+    $scope.$watch('tabId', function (newValue, oldValue) {
+    	if(newValue != undefined){
+    	 $scope.formData.RULE_NAME = newValue.ruleType;
+    	 $scope.formData.RTID = newValue.rtId;
+    	}
+      });
+    
+    $scope.submit = function() {
+    	self.saveMessage = "";
+    	if(mandatoryFieldCheck() == true){
+    		return;
+    	} 
+    	
+    	var control1 = JSON.parse($scope.formData.CONTROLID_1);
+    	var control2 = JSON.parse($scope.formData.CONTROLID_2);
+    	
+    	
+    	$scope.formData.CONTROLID_1_NAME=control1.controlName;
+		$scope.formData.CONTROLID_2_NAME=control2.controlName;
+		
+		$scope.formData.CONTROLID_1=control1.controlId;
+		$scope.formData.CONTROLID_2=control2.controlId;
+		
+		if($scope.formData.SID_2 != undefined){
+			var sid2 = JSON.parse($scope.formData.SID_2);
+			$scope.formData.SID_2_NAME=sid2[0];
+			$scope.formData.SID_2=sid2[1];
+		}
+		
+		if($scope.formData.SID_3 != undefined){
+			var sid3 = JSON.parse($scope.formData.SID_3);
+			$scope.formData.SID_3_NAME=sid3[0];
+			$scope.formData.SID_3=sid3[1];
+		}
+		
+    	RuleService.submit($scope.formData)
+        .then(
+	        function(data) {
+	        	self.saveMessage = "Data successfully saved.";
+	        	$scope.ui = { alertmsg: false };
+	        	$("#save-message").css("display","block");
+	            $scope.ui.alertmsg = true;
+	            $("#save-message").delay(4000).fadeOut('slow');
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+    };
+    
+    function mandatoryFieldCheck(){
+    	if($scope.formData.SID_PRIMARY == undefined){
+    		mandatoryFieldCheckMessage("Primary SynId");
+       	 	return true;
+    	}
+    	
+    	if($scope.formData.CONTROLID_1 == undefined){
+    		mandatoryFieldCheckMessage("First control id");
+       	 	return true;
+    	}
+    	
+    	if($scope.formData.CONTROLID_2 == undefined){
+    		mandatoryFieldCheckMessage("Second control id");
+       	 	return true;
+    	}
+    	
+    	if($scope.formData.CONTROL_1_VALUE == undefined){
+    		mandatoryFieldCheckMessage("First control value");
+       	 	return true;
+    	}
+    	
+    	if($scope.formData.CONTROL_2_VALUE == undefined){
+    		mandatoryFieldCheckMessage("Second control value");
+       	 	return true;
+    	}
+    }
+    
+    function mandatoryFieldCheckMessage(input){
+    	self.saveMessage = input + " cannot be empty";
+    	//Flash.clear();
+      	//Flash.create('danger', self.saveMessage);
+    }
+    
+    $scope.fetchControlMapping = function() {
+    	var synId="ETOH";
+    	
+    	RuleService.fetchControlMappingTypes(synId).then(
+    	function (data){
+    		 self.controlMapping=data.obj;
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+      $scope.fetchComponent = function(encodedSynObj) {
+		var SynObj =  JSON.parse(decodeURIComponent(encodedSynObj));
+		var sid = SynObj.sid;
+		
+		$scope.formData.SID_PRIMARY=sid;
+		$scope.formData.SID_PRIMARY_NAME=SynObj.synid;
+		
+		var categories = SynObj.category2 == "" ? SynObj.category1 : SynObj.category3 == "" ? SynObj.category1 + " - " + SynObj.category2 : SynObj.category4 == "" ? SynObj.category1 + " - " + SynObj.category2 + " - " + SynObj.category3 : SynObj.category1 + " - " + SynObj.category2 + " - " + SynObj.category3 + " - " + SynObj.category4;
+		$scope.showCategory = categories;
+		//$scope.showCategory = SynObj.description;
+		
+		$('[ng-click^="fetchComponent"]').css('color','rgb(0, 227, 255)');  
+		$('#synId'+sid).css('color','red');  
+    	RuleService.fetchControlMappingTypes($scope.formData.SID_PRIMARY,$scope.formData.CLIENTID,$scope.formData.RTID).then(
+    	function (data){
+    		self.controlMapping=data.obj;
+    		self.controlFirstCompFilteredObj=null;
+    		self.controlSecondCompFilteredObj=null;
+    		$scope.formData.CONTROLID_1=null;
+			$scope.formData.CONTROLID_2=null;
+			$scope.formData.CONTROL_1_OPERATOR=null;
+			$scope.formData.CONTROL_2_OPERATOR=null;
+			$scope.formData.CONTROL_1_VALUE=null;
+			$scope.formData.CONTROL_2_VALUE=null;
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+    
+    function autoFetchComponent (sid) {
+		$scope.formData.SID_PRIMARY=sid;
+		
+		//var categories = SynObj.category2 == "" ? SynObj.category1 : SynObj.category3 == "" ? SynObj.category1 + " - " + SynObj.category2 : SynObj.category4 == "" ? SynObj.category1 + " - " + SynObj.category2 + " - " + SynObj.category3 : SynObj.category1 + " - " + SynObj.category2 + " - " + SynObj.category3 + " - " + SynObj.category4;
+		//$scope.showCategory = categories;
+		//$scope.showCategory = SynObj.description;
+		
+		$('[ng-click^="fetchComponent"]').css('color','rgb(0, 227, 255)');  
+		$('#synId'+sid).css('color','red');  
+    	RuleService.fetchControlMappingTypes($scope.formData.SID_PRIMARY,$scope.formData.CLIENTID,$scope.formData.RTID).then(
+    	function (data){
+    		self.controlMapping=data.obj;
+    		self.controlFirstCompFilteredObj=null;
+    		self.controlSecondCompFilteredObj=null;
+    		$scope.formData.CONTROLID_1=null;
+			$scope.formData.CONTROLID_2=null;
+			$scope.formData.CONTROL_1_OPERATOR=null;
+			$scope.formData.CONTROL_2_OPERATOR=null;
+			$scope.formData.CONTROL_1_VALUE=null;
+			$scope.formData.CONTROL_2_VALUE=null;
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    }
+    
+    $scope.searchSynCode = function(clientFlag) {
+    	var accordionhtml = buildAccodionCategory(clientFlag,""); 
+    	$('#accordion-div').html($compile(accordionhtml)($scope));
+    	var amenuOptions = {menuId: "accordion", linkIdToMenuHtml: null, expand: "single", speed: 200, license: "2a8e9"};
+		McAcdnMenu(amenuOptions);
+    };
+    
+    $scope.refreshCategory = function() {
+    	var clientId = $scope.formData.CLIENTID!= null ? $scope.formData.CLIENTID : 0;
+    	var accordionhtml = buildAccodionCategory(clientId,""); 
+    	$('#accordion-div').html($compile(accordionhtml)($scope));
+    	var amenuOptions = {menuId: "accordion", linkIdToMenuHtml: null, expand: "single", speed: 200, license: "2a8e9"};
+		McAcdnMenu(amenuOptions);
+    };
+    
+    $scope.filterControlMappingFirstComp = function() {
+    	self.controlFirstCompFilteredObj= JSON.parse($scope.formData.CONTROLID_1);
+    	
+    };
+    
+    $scope.filterControlMappingSecondComp = function() {
+    	self.controlSecondCompFilteredObj=JSON.parse($scope.formData.CONTROLID_2);
+    	
+    };
+    function getParameterInURL(field, href){
+    	var reg = new RegExp( '[?&]' + field + '=([^&#]*)', 'i' );
+    	var string = reg.exec(href);
+    	return string ? string[1] : null;
+    }
+    
+}]);
+
+app.controller('RuleSearchController', ["$rootScope", '$scope', 'RuleService','$compile',"$window", function($rootScope, $scope, RuleService, $compile, $window) {
+	var self = this;
+    self.clientInfo= [];
+    self.ruleInfo= [];
+    self.ruleDataList = [];
+    $scope.formData={};
+    self.secondaryClientSynIds = [];
+    
+    $scope.defaultClientsForSearch = function () {
+    	RuleService.getRulesByClient(0)
+        .then(
+        function(data) {
+        	self.clientInfo = data.mapList.clientInfo;
+          	//$scope.formData.clientID = self.clientInfo[0].clientId;
+          	self.ruleInfo = data.obj;
+        	//$scope.formData.Rule_Name = self.ruleInfo[0].ruleType;
+        	self.secondaryClientSynIds = data.mapList.secondaryClientSynIds;
+        	$scope.formData.SID2 = "";
+        	$scope.formData.clientID = $scope.formData.Rule_Name = $scope.formData.SynID = $scope.formData.Description = $scope.formData.Message = $scope.formData.Notes = "";
+        },
+        function(errResponse){
+            console.error('Error while fetching Users');
+        }
+        );
+    };
+    
+    $scope.fetchRulesForSearchByClient = function() {
+        var clientId = $scope.formData.clientID != null ? $scope.formData.clientID : 0;
+        RuleService.getRulesByClient(clientId)
+	        .then(
+	        function(data) {
+	        	 self.ruleInfo= data.obj;
+	        	 self.secondaryClientSynIds = data.mapList.secondaryClientSynIds;
+	        	 $scope.formData.Rule_Name = $scope.formData.SID2 = "";
+	        	 //$scope.formData.Rule_Name = self.ruleInfo[0].ruleType;
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+    };
+    
+    $scope.search = function() {
+    	$scope.ui = { alertmsg: false };
+    	if ($scope.formData.clientID == "" && $scope.formData.Rule_Name == "" && $scope.formData.SynID == "" && $scope.formData.Description == "" && $scope.formData.Message == "" && $scope.formData.SID2 == "" && $scope.formData.Notes == "") {
+    		$("#search-alert").css("display","block");
+            $scope.ui.alertmsg = true;
+            $("#search-alert").delay(4000).fadeOut('slow');
+        }else{ 
+	    	RuleService.search($scope.formData)
+	        .then(
+		        function(data) {
+		        	self.ruleDataList = data.mapList.searchResult;
+		        },
+		        function(errResponse){
+		            console.error('Error while fetching Users');
+		        }
+		    );
+        }
+    };
+    
+    $scope.editRule = function(ruleData) {
+    	$window.sessionStorage.setItem('key.ruleData', JSON.stringify(ruleData));
+        $window.location.href = _contextPath + "/rulecreation?param=edit";
+       
+    };
+    
+    
+}]);
+
+
+app.factory('Excel',function($window){
+    var uri='data:application/vnd.ms-excel;base64,',
+        template='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>{table}</table></body></html>',
+        base64=function(s){return $window.btoa(unescape(encodeURIComponent(s)));},
+        format=function(s,c){return s.replace(/{(\w+)}/g,function(m,p){return c[p];})};
+    return {
+        tableToExcel:function(tableId,worksheetName){
+            var table=$(tableId),
+                ctx={worksheet:worksheetName,table:table.html()},
+                href=uri+base64(format(template,ctx));
+            return href;
+        }
+    };
+})
+.controller('dataExportCtrl',function(Excel,$timeout,$scope){
+  $scope.exportToExcel=function(tableId){ // ex: '#my-table'
+        var exportHref=Excel.tableToExcel(tableId,'Searched Rule Data');
+        $timeout(function(){location.href=exportHref;},100); // trigger download
+    }
+});

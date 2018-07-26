@@ -1,0 +1,16 @@
+package com.ccc.dao;
+
+import java.util.List;
+
+public interface SaleTaxDao {
+	
+	List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType,String registrationDate);
+	List<Object[]> getTaxWithWeightInfo(Integer weight,Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getGenericTaxData(String rName,String cName,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getCitySpecificGenericTaxData(String rName,String cName,String city,String modelMake,String modelName,Integer modelYear, String modelTrim,String plateType);
+	List<Object[]> getPlateTypeFees(String state, String plateType);
+	List<Object[]> getOptionalFees(String state);
+	List<Object[]> getOptionalFeesForCounty(String state, String county);
+	List<Object[]> getTaxandFees(String rName, String cName, String city, Integer year, String date);
+
+}

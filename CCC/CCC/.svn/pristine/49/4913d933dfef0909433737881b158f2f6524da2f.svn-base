@@ -1,0 +1,46 @@
+package com.ccc.dao.impl;
+
+import java.util.List;
+
+import javax.persistence.Query;
+
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ccc.dao.AbstractDao;
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.model.User;
+@Repository
+public class SaleTaxDaoImpl extends AbstractDao<Long, User>  implements SaleTaxDao  {
+
+	
+	
+	@Override
+	public List<Object[]> getSaleTax(Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear) {
+		Session session =getSession();
+				
+				StringBuilder sqlAppender=new StringBuilder(" SELECT DISTINCT  L.LOCATIONRATE,CASE WHEN L.ISRTA='N' THEN 0 ELSE T.RTA END RTA,T.RATE AS SALES_TAX,FEES.REGISTRATIONFEES,FEES.VEHICLEFEES, FEES.TITLEFEES,W.FEES AS WEIGHTFEES, FEES.PLATETYPEFEES,"
+						+ "FEES.VEHICLEIDENTIFICATIONNUMBER FROM (SELECT 0 AS WEIGHT_ST,4000 AS WEIGHT_ED,53 AS FEES,1 REGIONID UNION ALL "
+						+ "SELECT W.WEIGHT AS WEIGHT_ST,W1.WEIGHT AS WEIGHT_ED,W1.FEES,W.REGIONID FROM WEIGHTFEES W, WEIGHTFEES W1 WHERE (W.WEIGHTFEESID+1)=W1.WEIGHTFEESID) W "
+						+ "INNER JOIN REGION R ON R.REGIONID=W.REGIONID INNER JOIN COUNTY C ON C.REGIONID=R.REGIONID INNER JOIN LOCATION L ON L.COUNTYID=C.COUNTYID "
+						+ "LEFT OUTER JOIN MODELS M ON M.WEIGHT_POUND BETWEEN W.WEIGHT_ST AND  W.WEIGHT_ED INNER JOIN MODELMAKE MM ON MM.MODELMAKEID=M.MODELMAKEID "
+						+ "INNER JOIN VEHICLEMODELS VM ON VM.VEHICLEMODELID=M.VEHICLEMODELID LEFT OUTER JOIN TAX T ON L.REGIONID=T.TOREGIONID "
+						+ "INNER JOIN (SELECT SUM(TITLEFEES) TITLEFEES, SUM(REGISTRATIONFEES) REGISTRATIONFEES,SUM(VEHICLEFEES) VEHICLEFEES,SUM(PLATETYPEFEES) PLATETYPEFEES, "
+						+ "SUM(VEHICLEIDENTIFICATIONNUMBER) VEHICLEIDENTIFICATIONNUMBER,REGIONID  FROM   (SELECT IF(FEESID=1,FEESVALUE,0)  TITLEFEES,IF(FEESID=2,FEESVALUE,0) AS REGISTRATIONFEES,IF(FEESID=3,FEESVALUE,0) AS VEHICLEFEES, "
+						+ "IF(FEESID=5,FEESVALUE,0) AS PLATETYPEFEES,IF(FEESID=6,FEESVALUE,0) AS VEHICLEIDENTIFICATIONNUMBER,REGIONID FROM FEES) FEES  GROUP BY REGIONID) FEES ON FEES.REGIONID=R.REGIONID "
+						+ " WHERE W.WEIGHT_ST IS NOT NULL AND UPPER(R.NAME)=UPPER('"+rName+"') AND UPPER(C.NAME)=UPPER('"+cName+"') AND L.PLUS4="+plus4+" AND L.ZIP="+zip+" AND UPPER(MM.MODELMAKE)=UPPER('"+modelMake+"') "
+						+ " AND UPPER(VM.MODELNAME)=UPPER('"+modelName+"') AND M.YEAR="+modelYear+"");
+
+		
+		System.out.println("QUERY "+sqlAppender.toString());
+		@SuppressWarnings("deprecation")
+		Query query=session.createNativeQuery(sqlAppender.toString());
+		List<Object[]> list=query.getResultList();
+		return list;
+		
+	}
+
+}

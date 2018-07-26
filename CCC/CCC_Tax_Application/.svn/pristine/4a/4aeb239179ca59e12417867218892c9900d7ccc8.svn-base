@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Form Design</title>
+	
+<style>
+.box{background-color:#fbfbfb; box-shadow:0 0px 4px 0px #cfcfcf; -webkit-box-shadow:0 0px 4px 0px #cfcfcf; -moz-box-shadow:0 0px 4px 0px #cfcfcf; -ms-box-shadow:0 0px 4px 0px #cfcfcf; padding:20px; margin-bottom:20px; margin-top:10px;}
+.box h3{margin-top:0; margin-bottom:20px; font-size:18px; color:#777;border-bottom: 1px solid #ccc;    padding: 0 5px 15px;}
+.form-group{font-size: 11px;}
+.form-group label{font-weight:600; font-size: 14px;}
+.form-group .form-control{border-radius:0; height:35px; border-color:#e8e8e8;     margin-bottom: 10px;}
+.form-group .required{color:red;}
+</style>
+
+</head>
+<body>
+<div class="container">
+<!-- Form Start -->
+<div ng-controller="TaxCalculatorController as ctrl" ng-init="defaultInfoForClient();">
+<form>
+<div class="box">
+<h3>New Registered Owner Information</h3>
+<div class="row">
+<div class="col-md-4">
+<div class="form-group"><label>Name</label><input placeholder="Enter Name here" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Address Line 1</label><input placeholder="Address" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Address Line 2</label><input placeholder="Address" type="text" class="form-control"></div>
+</div>
+</div>
+
+<div class="row">
+<div class="col-md-4">
+
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>D.O.B <span class="required">*</span></label><input placeholder="Enter DOB" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>State</label>
+
+<select id="TimeLine" ng-change="fetchCounties();" ng-model="formData.stateData" class="form-control">
+								<option ng-repeat="state in ctrl.stateData"  value="{{state}}">{{state.name}}</option>
+						  </select>
+</div>
+</div>
+</div>
+
+<div class="row">
+<div class="col-md-4">
+<div class="form-group"><label>County of Residence</label>
+	<select id="TimeLine" ng-change="fetchLocationInfo();"  ng-model="formData.countyData" class="form-control">
+								<option ng-repeat="county in  ctrl.countiesData"  value="{{county}}">{{county.name}}</option>
+						  </select>
+</div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Area Code <span class="required">*</span></label>
+<select id="TimeLine"  ng-model="formData.areaCode" class="form-control">
+								<option ng-repeat="location in  ctrl.controlMapping  "  value="{{location.area_code}}">{{location.area_code}}</option>
+						  </select></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>ZIP Code</label>
+<select id="TimeLine"  ng-model="formData.zip" class="form-control">
+								<option ng-repeat="location in  ctrl.controlMapping"  value="{{location.zip}}">{{location.zip}}</option>
+						  </select></div>
+</div>
+</div>
+</div>
+
+ <input type="hidden" ng-model="_csrf" name="${_csrf.parameterName}"  value="${_csrf.token}" />
+
+<div class="box">
+<h3>Washington Title and/or Registration Application Vehicle Information</h3>
+<div class="row">
+<div class="col-md-4">
+<div class="form-group"><label>Vehicle Identification Number (VIN)</label><input placeholder="Enter Name here" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>License Plate Number</label><input placeholder="Address" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Vehicle Type <span class="required">*</span></label><input placeholder="Address" type="text" class="form-control"></div>
+</div>
+</div>
+
+<div class="row">
+<div class="col-md-4">
+<div class="form-group"><label>Year <span class="required">*</span></label><input placeholder="Type City here" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Make <span class="required">*</span></label><input placeholder="Enter DOB" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Model <span class="required">*</span></label><input placeholder="Enter DOB" type="text" class="form-control"></div>
+</div>
+</div>
+
+<div class="row">
+<div class="col-md-4">
+<div class="form-group"><label>Weight</label> <input placeholder="Enter Area Code" type="text" class="form-control"></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Body Style <span class="required">*</span></label> <select class="form-control"><option>Select here</option></select></div>
+</div>
+<div class="col-md-4">
+<div class="form-group"><label>Fuel Type</label><select class="form-control"><option>Select here</option></select></div>
+</div>
+</div>
+<div class="row">
+<div class="col-md-6">
+<div class="form-group"><label>Seating Capacity</label> <input placeholder="Enter Area Code" type="text" class="form-control"></div>
+</div>
+ <div class="col-md-6">
+<div class="form-group"><label>Registration Date</label> <input placeholder="Enter Area Code" type="text" class="form-control"></div>
+</div>
+</div>
+<!-- <button focus-index="1" class="btn btn-primary" data-toggle="modal" focus-element="autofocus" data-target=".bs-example-modal-lg">Large modal</button> -->
+<div class="btn-bar text-center"><input data-ng-click="submit()" type="button" value="Get Tax Detail" class="btn btn-primary btn-lg"  focus-index="1" class="btn btn-primary" data-toggle="modal" focus-element="autofocus" data-target=".bs-example-modal-lg"></div>
+</div>
+
+<div class="modal fade bs-example-modal-lg"  focus-group focus-group-head="loop" focus-group-tail="loop" focus-stacktabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+			<div class="modal-content">
+			  <div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+				<h4 class="modal-title" id="myModalLabel">Results Screen</h4>
+			  </div>
+			  <div class="modal-body">
+					<div class="box" id="view-results">
+						<div class="innerbox">
+						<h4>Sales Tax</h4>
+						<div class="row">
+						<div class="col-md-3"><div class="form-group"><label>Sales Tax/Use Tax</label><input ng-model="SaleTaxComponent"  type="text" class="form-control" readonly></div>
+						</div>
+						<div class="col-md-3"><div class="form-group"><label>Location Rate</label><input ng-model="LocationRate" type="text" class="form-control" readonly></div></div>
+						<div class="col-md-3"><div class="form-group"><label>RTA</label><input ng-model="RTA" type="text" class="form-control" readonly></div></div>
+						<div class="col-md-3"><div class="form-group"><label>Total Sales Tax</label><input ng-model="SalesTax"  type="text" class="form-control" readonly> </div></div>
+						</div>
+						</div>
+						
+						<div class="innerbox">
+						<h4>Title Fees</h4>
+						<div class="row">
+						<div class="col-md-6">
+						<div class="form-group"><label>Title Fees</label><input  ng-model="TitleFeesComponent" type="text" class="form-control" readonly> </div>
+						</div>
+						<div class="col-md-6">
+						<div class="form-group"><label>Total Title fees</label><input ng-model="TitleFees" type="text" class="form-control" readonly></div>
+						</div>
+						</div>
+						</div>
+						<div class="innerbox">
+						<h4>Registration Fees</h4>
+						<div class="row">
+						<div class="col-md-4">
+						<div class="form-group"><label>Registration Fees</label><input ng-model="RegFessComponent"  type="text" class="form-control" readonly> </div>
+						</div>
+						<div class="col-md-4">
+						<div class="form-group"><label>Vehicle Type Fee</label><input ng-model="VehicleType"  type="text" class="form-control" readonly></div>
+						</div>
+						<div class="col-md-4">
+						<div class="form-group"><label>Weight Fee</label><input ng-model="WeightFee"  type="text" class="form-control" readonly></div>
+						</div>
+						<div class="col-md-4">
+						<div class="form-group"><label>Plate Type Fee</label><input ng-model="PlateTypeFee"  type="text" class="form-control" readonly></div>
+						</div>
+						<div class="col-md-4">
+						<div class="form-group"><label>VIN Fee</label><input ng-model="VINFee" type="text" class="form-control" readonly>  </div>
+						</div>
+						<div class="col-md-4"><div class="form-group"><label>Total Registration fees</label><input ng-model="RegFess"  type="text" class="form-control" readonly></div></div>
+						</div>
+						</div>
+						 
+						</div>
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-default" focus-element="autofocus" data-dismiss="modal">Close</button>
+				<!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+			  </div>
+			</div>
+		  </div>
+
+</div> 	
+</form>
+</div>
+<!-- Form End -->
+</div>
+
+</body>
+</html>

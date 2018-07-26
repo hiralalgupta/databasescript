@@ -1,0 +1,128 @@
+package com.ccc.service.impl;
+
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+
+import com.ccc.exception.RestResponseException;
+import com.ccc.jsonview.DataResponse;
+import com.ccc.service.RestTemplateService;
+import com.ccc.webapp.util.ErrorResponse;
+
+@Service
+public class RestTemplateServiceImpl implements RestTemplateService,ApplicationContextAware {
+	
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	private ApplicationContext applicationContext;
+	
+/*	@Autowired
+	private UserDetail userDetail;*/
+	
+
+	private HttpHeaders getHttpHeadersforIWS3(){
+		
+		HttpHeaders headers = new HttpHeaders();
+		//headers.add("token1", userDetail.getUserName());
+		//headers.add("token2", userDetail.getPassword());
+		
+		return headers;
+	}
+	
+	private HttpHeaders getHttpHeaders(){
+		
+		/*String plainCreds = userDetail.getUserName()+":"+userDetail.getPassword();
+		byte[] plainCredsBytes = plainCreds.getBytes();
+		byte[] base64CredsBytes = Base64.encodeBase64(plainCredsBytes);
+		String base64Creds = new String(base64CredsBytes);*/
+		
+		HttpHeaders headers = new HttpHeaders();
+		//headers.add("Authorization", "Basic " + base64Creds);
+		
+		
+		return headers;
+	}
+
+	@Override
+	public <T> T getDataFromWS(String url,HttpMethod httpMethod, Class<T> responseEntity,Map<String, String> requestParameter) throws RestResponseException {
+		HttpHeaders headers = getHttpHeaders();
+		//setting content type JSON for message converter 
+		headers.setContentType(MediaType.APPLICATION_JSON);
+	/*	if(!url.contains("authentication")){
+		AuthenticationToken tokenUtil=(AuthenticationToken) applicationContext.getBean(AuthenticationToken.class);
+		headers.add("Authorization", tokenUtil.getToken());
+		}*/
+		
+		HttpEntity<String> requestEntity = new HttpEntity<String>(headers);
+		System.out.println("Rest Url: "+url);
+		System.out.println("Rest Parameter: "+requestParameter);
+		ResponseEntity<T>	response=null;
+		try {
+			response = restTemplate.exchange(url, httpMethod, requestEntity, responseEntity,requestParameter);
+		} catch (RestResponseException e) {
+		/*	ResponseEntity<RestErrorInfo> errorResponse=(ResponseEntity<RestErrorInfo>) e.getResponseEntity();
+			showErrorInfoFromRestServer(errorResponse);*/
+			
+			throw new  RestResponseException(e.getResponseEntity());
+			
+			
+		}
+		
+		return response.getBody();
+	}
+
+	@SuppressWarnings("unchecked")
+	@Override
+	public <T> T postDataToWS(String url, HttpMethod httpMethod, Object requestEntity, Class<T> responseEntity) {
+		
+		HttpHeaders headers = getHttpHeaders();
+		//setting content type JSON for message converter 
+		headers.setContentType(MediaType.APPLICATION_JSON);
+		
+		//passing request object and headers parameters to HttpEntity 
+		HttpEntity<Object> requestsEntity = new HttpEntity<Object>(requestEntity,headers);
+		
+		ResponseEntity<T> response=null;
+		try {
+			//calling REST service with URL,POST method,request object and response type
+			response = restTemplate.exchange(url, httpMethod, requestsEntity, responseEntity);
+			System.out.println("Response:"+response);
+		} catch (RestResponseException e) {
+			ErrorResponse errorResponse=(ErrorResponse) e.getResponseEntity().getBody();
+			showErrorInfoFromRestServer(errorResponse);
+			DataResponse errResponse=new DataResponse();
+			errResponse.setErrorResponse(errorResponse);
+			return (T) errResponse;
+		}
+		
+		return response.getBody();
+	}
+
+	@Override
+	public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+		this.applicationContext=applicationContext;
+		
+	}
+	
+	private void showErrorInfoFromRestServer(ErrorResponse errorResponse){
+		System.out.println("Error Code:"+errorResponse.getErrorCode());
+		System.out.println("Error Info:"+errorResponse.getStatus());
+		System.out.println("Error Message:"+errorResponse.getErrorMsg());
+		List<String> errors=errorResponse.getErrors();
+		errors.forEach(err -> System.out.println("Error:" + err));
+	}
+
+	
+}

@@ -1,0 +1,384 @@
+<%@ include file="/common/taglibs.jsp"%>
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script type="text/javascript" src="<c:url value='static/js/accordion-menu.js'/>"></script>
+<script type="text/javascript" src="<c:url value='static/js/accordion-category.js'/>"></script>
+<title>Synodex</title>
+</head>
+<body>
+<html:form>
+<div id="wrap"> 
+  <!-- Section start here -->
+  <section id="main"> 
+  <div class="container-fluid">
+      <!-- Page content -->
+      <div class="row" ng-controller="RuleController as ctrl">
+        <div class="col-sm-12 green-bg">
+         <!--  <div class="col-sm-2 dropdown client-status" >
+		  <select id="TimeLine" ng-init="defaultRulesForClient();" ng-change="fetchRulesForClient();" ng-model="formData.CLIENTID" class="form-control">
+				<option ng-repeat="client in ctrl.clientInfo"  value="{{client.clientId}}" ng-selected="{{client.clientId == selectedClient}}">{{client.clientName}}</option>
+		  </select>
+		  </div> -->
+      	  <div class="col-sm-5 col-md-3">
+              <!-- <h4 class="yellow"><span aria-hidden="true" class="glyphicon glyphicon-eye-open blue"></span> Your are Viewing Workplace Version!!</h4> -->
+            </div>
+            <!--<div class="col-sm-5 col-md-2">
+               <flash-message duration="5000"></flash-message>
+            </div>-->
+            	
+        </div>
+        
+        
+        <div class="col-sm-9 col-md-10 page-body">
+            <div class="row">              
+              <ul   class="nav nav-tabs nav-tabs-horizontal">
+              	<li id="ruleTab{{rule.rtId}}" ng-repeat="rule in ctrl.ruleInfo" ng-class="{active: rule.rtId==selectedRule}"><a ng-click="tabChanged(rule)" data-toggle="tab">{{rule.ruleType}} Rules</a></li>
+            </ul>
+            <div class="tab-content">
+                <div role="tabpanel" class="tab-pane fade in active" id="htab1">
+                	<div class="row" style="padding-top: 20px;">
+                	 <label for="RuleID" class="col-md-3 control-label blue font-bold">Select State:</label>
+                   		<span class="form-horizontal mt20">
+                          <div class="col-md-6">
+                           <select id="TimeLine" ng-init="defaultRulesForClient();" ng-change="fetchRulesForClient();" ng-model="formData.CLIENTID" class="form-control">
+								<option ng-repeat="client in ctrl.clientInfo"  value="{{client.clientId}}" ng-selected="{{client.clientId == selectedClient}}">{{client.clientName}}</option>
+						  </select>
+                          </div>
+                          <div class="col-md-6">
+                            <div class="form-group">
+                              <label for="RuleID" class="col-md-3 control-label blue font-bold">Rule ID</label>
+                              <div class="col-md-6">
+                                <input type="text"  ng-model="formData.RTID" id="RuleID" name="RuleID" value="AD.D12345" class="form-control input-sm" required="" readonly>
+                              </div>
+                            </div>
+                          </div>
+                          <input type="hidden" ng-model="_csrf" name="${_csrf.parameterName}"  value="${_csrf.token}" />
+                    	</span>
+                    </div>
+                    <div class="row">
+                    <div class="col-sm-12">
+                      <div class="panel panel-default">
+                        <div class="panel-heading">
+                              <h3 class="panel-title blue font-bold">General Criteria</h3>
+                            </div>
+                        <div class="panel-body"> 
+                        <form class="form-horizontal mt20">
+                          <div class="col-md-3">
+                            <div class="form-group">
+                              <label for="Timeframe" class="col-md-6 control-label ">Timeframe</label>
+                              <div class="col-md-6">
+                                <select ng-model="formData.TIMEFRAME" class="form-control"  id="Timeframe">
+                                	<option ng-repeat="timeframe in ctrl.ruleFields.timeframe" ng-selected="{{timeframe == selectedTimeframe}}" value="{{timeframe}}">{{timeframe}}</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-group">
+                              <label for="Gender" class="col-md-6 control-label ">Gender</label>
+                              <div class="col-md-6">
+                                <select ng-model="formData.GENDER" class="form-control" id="Gender">
+                                	<option ng-repeat="gender in ctrl.ruleFields.gender" ng-selected="{{gender == selectedGender}}" value="{{gender}}">{{gender}}</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-group">
+                              <label for="AgeThreshold" class="col-md-6 control-label ">Age Threshold</label>
+                              <div class="col-md-6">
+                                <select ng-model="formData.AGE_OPERATOR" class="form-control" id="AgeThreshold">
+                                	<option ng-repeat="ageThreshold in ctrl.ruleFields.ageThreshold" ng-selected="{{ageThreshold == selectedAgeThreshold}}" value="{{ageThreshold}}">{{ageThreshold}}</option>
+                                </select>
+                              </div>
+                            </div>
+                          </div>
+                          <div class="col-md-3">
+                            <div class="form-group">
+                              <label for="Age" class="col-md-6 control-label ">Age</label>
+                              <div class="col-md-6">
+                                <input type="text"  ng-model="formData.AGE" id="Age" name="Age" value="" class="form-control input-sm" required="">
+                              </div>
+                            </div>
+                          </div>
+                    	</form>
+                        
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+											<div class="row">
+												<div class="col-sm-12">
+													<div class="panel panel-default">
+														<div class="panel-heading">
+															<h3 class="panel-title blue font-bold">Impairment 1 : {{showCategory}} </h3>
+														</div>
+														<div class="panel-body">
+															<form class="form-horizontal mt20">
+																<div class="col-md-6">
+																	<div class="form-group">
+																		<label for="Name" class="col-md-3 control-label ">Field
+																			Component 1:</label>
+																		<div class="col-md-6">
+																			<select class="form-control" ng-model="formData.CONTROLID_1" ng-change="filterControlMappingFirstComp()">
+																				<option ng-repeat="option in ctrl.controlMapping track by option.controlLabel" ng-selected="{{option.controlId == selectedCONTROLID_1}}" value="{{option}}">{{option.controlLabel}}</option>
+																			</select>
+																		</div>
+																	</div>
+																	<div ng-if="ctrl.controlFirstCompFilteredObj.controlType=='List Units'" class="form-group">
+																		<label for="Name" class="col-md-3 control-label ">Operator</label>
+																		<div class="col-md-6">
+																			<select class="form-control" ng-model="formData.CONTROL_1_OPERATOR" id="opertor">
+																				<option ng-repeat="operator in ctrl.operatorList" value="{{operator}}">{{operator}}</option>
+																			</select>
+																		</div>
+																	</div>
+
+																	<div class="form-group">
+																		<!-- For List or Combo   -->
+																		<div ng-if="ctrl.controlFirstCompFilteredObj.controlType=='List' || ctrl.controlFirstCompFilteredObj.controlType=='Combo' ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<!-- <select class="form-control"  ng-options="option for option in ctrl.controlFirstCompFilteredObj.controlVal "  /> -->
+																				<select class="form-control" ng-model="formData.CONTROL_1_VALUE">
+																					<option value="">Select</option>
+																					<option ng-repeat="option in ctrl.controlFirstCompFilteredObj.controlVal" value="{{option}}">{{option}}</option>
+																				</select>
+																			</div>
+																		</div>
+																		<!-- For Date   -->
+																		<div
+																			ng-if="ctrl.controlFirstCompFilteredObj.controlType=='Date'">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<input type="date" ng-model="formData.CONTROL_1_VALUE" placeholder="Enter date" pattern="[0-9]{2}/[0-9]{2}/[0-9]{4}" class="form-control"/>
+																			</div>
+																		</div>
+																		<!-- For text or numeric   -->
+																		<div
+																			ng-if="ctrl.controlFirstCompFilteredObj.controlType=='Text' || ctrl.controlFirstCompFilteredObj.controlType=='Numeric'  ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<!-- To Implement Patter use this Code  pattern="{{ctrl.controlFirstCompFilteredObj.controlType == 'Text' && '[A-Za-z0-9]' || '[0-9]{10}'}}" -->
+																				<input
+																					type="{{ctrl.controlFirstCompFilteredObj.controlType == 'Text' && 'text' || 'number'}}"
+																					id="{{ctrl.controlFirstCompFilteredObj.controlName}}"
+																					ng-model="formData.CONTROL_1_VALUE"
+																					class="form-control" />
+																			</div>
+																		</div>
+																		<!-- For List Units   -->
+																		<div
+																			ng-if="ctrl.controlFirstCompFilteredObj.controlType=='List Units' ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<input type="text" id="text_listunits"
+																					class="col-md-4 ctrl-space"
+																					ng-model="formData.CONTROL_1_VALUE" /> <select
+																					class="col-md-4 control-label ">
+																					<option value="">Select</option>
+																					<option
+																						ng-repeat="option in ctrl.controlFirstCompFilteredObj.controlVal"
+																						value="{{option}}">{{option}}</option>
+																				</select>
+																				<!-- <select class="form-control"  ng-options="option for option in ctrl.controlFirstCompFilteredObj.controlVal "  /> -->
+																			</div>
+																		</div>
+
+
+																	</div>
+																</div>
+																<div class="col-md-6">
+																	<div class="form-group">
+																		<label for="Name" class="col-md-3 control-label ">Field
+																			Component 2:</label>
+																		<div class="col-md-6">
+																			<select class="form-control" ng-model="formData.CONTROLID_2" ng-change="filterControlMappingSecondComp()">
+																				<option ng-repeat="option in ctrl.controlMapping track by option.controlLabel" ng-selected="{{option.controlId == selectedCONTROLID_2}}" value="{{option}}">{{option.controlLabel}}</option>
+																			</select>
+																		</div>
+																	</div>
+																	<div
+																		ng-if="ctrl.controlSecondCompFilteredObj.controlType=='List Units'"
+																		class="form-group">
+																		<label for="Name" class="col-md-3 control-label ">Operator</label>
+																		<div class="col-md-6">
+																			<select class="form-control"
+																				ng-model="formData.CONTROL_2_OPERATOR" id="opertor">
+																				<option
+																					ng-repeat="ageThreshold in ctrl.operatorList"
+																					value="{{ageThreshold}}">{{ageThreshold}}</option>
+																			</select>
+																		</div>
+																	</div>
+																	<div class="form-group">
+																		<!-- For List or Combo   -->
+																		<div
+																			ng-if="ctrl.controlSecondCompFilteredObj.controlType=='List' || ctrl.controlSecondCompFilteredObj.controlType=='Combo'  ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<!--   <select class="form-control"  ng-options="option for option in ctrl.controlSecondCompFilteredObj.controlVal " id="GeneticType" /> -->
+																				<select class="form-control"
+																					ng-model="formData.CONTROL_2_VALUE">
+																					<option value="">Select</option>
+																					<option
+																						ng-repeat="option  in ctrl.controlSecondCompFilteredObj.controlVal"
+																						value="{{option}}">{{option}}</option>
+																				</select>
+																			</div>
+																		</div>
+																		<!-- For text or numeric   -->
+																		<div
+																			ng-if="ctrl.controlSecondCompFilteredObj.controlType=='Text' || ctrl.controlSecondCompFilteredObj.controlType=='Numeric' ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<input
+																					type="{{ ctrl.controlSecondCompFilteredObj.controlType =='Text' && 'text' || 'number'}}"
+																					ng-model="formData.CONTROL_2_VALUE"
+																					class="form-control" />
+																				<!-- <select class="form-control"  ng-options="option for option in ctrl.controlFirstCompFilteredObj.controlVal "  /> -->
+																			</div>
+																		</div>
+																		<!-- For List Units   -->
+																		<div
+																			ng-if="ctrl.controlSecondCompFilteredObj.controlType=='List Units' ">
+																			<label for="Name" class="col-md-3 control-label ">Value</label>
+																			<div class="col-md-6">
+																				<input type="text" id="text_listunits"
+																					class="col-md-4 ctrl-space "
+																					ng-model="formData.CONTROL_2_VALUE" /> <select
+																					class="col-md-4 control-label  ">
+																					<option value="">Select</option>
+																					<option
+																						ng-repeat="option in ctrl.controlSecondCompFilteredObj.controlVal"
+																						value="{{option}}">{{option}}</option>
+																				</select>
+																				<!-- <select class="form-control"  ng-options="option for option in ctrl.controlFirstCompFilteredObj.controlVal "  /> -->
+																			</div>
+																		</div>
+																	</div>
+																</div>
+															</form>
+														</div>
+													</div>
+												</div>
+											</div>
+											<div class="row">
+                    <div class="col-sm-6">
+                      <div class="panel panel-default">
+                        <div class="panel-heading">
+                              <h3 class="panel-title blue font-bold">Impairment 2</h3>
+                            </div>
+                        <div class="panel-body">
+                        <form class="form-horizontal mt20">
+                        <div class="col-md-12">
+                             <div class="form-group" ng-if="ctrl.secondaryClientSynIds">
+                              <label for="formData.SID_2" class="col-md-3 control-label ">Select SynId</label>
+                              <div class="col-md-6">
+								  <select ng-change="" ng-model="formData.SID_2" class="form-control">
+										<option ng-repeat="synId in ctrl.secondaryClientSynIds"  ng-selected="{{synId[1] == selectedSID_2}}" value="{{synId}}">{{synId[0]}}</option>
+								  </select>
+								  </div>
+							</div>
+                         </div>
+                          <div class="col-md-12">
+                            <div class="form-group">
+                              <label for="Status" class="col-md-3 control-label ">Status</label>
+                              <div class="col-md-6">
+                                 <select ng-model="formData.STATUS_SYNID_2" class="form-control">
+										<option ng-repeat="status in ctrl.secondaryClientSynIdsStatus" ng-selected="{{status == selectedSTATUS_SYNID_2}}" value="{{status}}">{{status}}</option>
+								  </select>
+                              </div>
+                            </div>
+                          </div>
+                    	</form>
+                        
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-sm-6">
+                      <div class="panel panel-default">
+                        <div class="panel-heading">
+                              <h3 class="panel-title blue font-bold">Impairment 3</h3>
+                            </div>
+                        <div class="panel-body"> 
+                         <form class="form-horizontal mt20">
+                        <div class="col-md-12">
+                             <div class="form-group" ng-if="ctrl.secondaryClientSynIds">
+                              <label for="formData.SID_3" class="col-md-3 control-label ">Select SynId</label>
+                              <div class="col-md-6">
+								  <select ng-change="" ng-model="formData.SID_3" class="form-control">
+										<option ng-repeat="synId in ctrl.secondaryClientSynIds" ng-selected="{{synId[1] == selectedSID_3}}" value="{{synId}}">{{synId[0]}}</option>
+								  </select>
+								  </div>
+							</div>
+                         </div>
+                          <div class="col-md-12">
+                            <div class="form-group">
+                              <label for="Status" class="col-md-3 control-label ">Status</label>
+                              <div class="col-md-6">
+                                <select ng-model="formData.STATUS_SYNID_3" class="form-control">
+										<option ng-repeat="status in ctrl.secondaryClientSynIdsStatus" ng-selected="{{status == selectedSTATUS_SYNID_3}}" value="{{status}}">{{status}}</option>
+								  </select>
+                              </div>
+                            </div>
+                          </div>
+                    	</form>
+                        
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  	<div class="row">
+                        <div class="col-sm-12">
+                           <h3 class="panel-title blue font-bold">Message</h3>
+                           <textarea ng-model="formData.MESSAGE" rows="4" class="form-control input-md mt10" placeholder="Decline: Alzheimers Disease"></textarea>
+                        </div>
+                        <div class="col-sm-12 mt20">
+                           <h3 class="panel-title blue font-bold">Note</h3>
+                           <textarea ng-model="formData.NOTES" rows="4" class="form-control input-md mt10" placeholder="Enter notes here....."></textarea>
+                        </div>
+                      </div>
+                    <div class="row">
+                        <div class="col-sm-12 mt20 text-right">
+                            <button data-ng-click="submit()" class="btn btn-labeled  btn-success" type="button"> Save 
+                            <span class="btn-label"><i class="icon-append fa fa-save"></i></span></button>
+                      </div>
+                </div>
+                </div>
+                <div role="tabpanel" class="tab-pane fade" id="htab2">
+                    Tab2
+                </div>
+                <div role="tabpanel" class="tab-pane fade in" id="htab3">
+                    Tab3
+                </div>
+                <div role="tabpanel" class="tab-pane fade" id="htab4">
+                    Tab4
+                </div>
+                <div role="tabpanel" class="tab-pane fade in" id="htab5">
+                     Tab5
+                </div>
+                 <div role="tabpanel" class="tab-pane fade" id="htab6">
+                    Tab6
+                </div>
+                <div role="tabpanel" class="tab-pane fade in" id="htab7">
+                     Tab7
+                </div>
+            </div>
+            </div>
+        </div>
+        </div>
+        
+      </div>
+      <!-- Page content End -->
+    </div>
+  </section>
+  <!-- Section End here -->
+</div>
+</html:form>
+</body>
+</html>

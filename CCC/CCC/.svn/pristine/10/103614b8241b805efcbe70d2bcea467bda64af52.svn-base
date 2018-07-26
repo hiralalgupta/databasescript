@@ -1,0 +1,103 @@
+package com.ccc.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.service.SaleTaxService;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+@Transactional(readOnly=true)
+@Service
+public class SaleTaxServiceImpl implements SaleTaxService {
+
+	@Autowired
+	private SaleTaxDao saleTaxDao;
+	
+	@Override
+	public List<Map<String ,String>> getAllSaleTax(double totalAmount,Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear
+			, String modelTrim,String plateType) {
+		List<Object[]> list=saleTaxDao.getSaleTax(plus4,zip,rName,cName, modelMake, modelName, modelYear,modelTrim,plateType);
+		List<Map<String ,String>> result=list.size()>0?new ArrayList<Map<String,String>>():null;
+		for (Object[] objects : list) {
+			Map<String ,String> map= new HashMap<String, String>();
+			map.put("LOCATION_RATE", objects[0].toString());
+			map.put("RTA", objects[1].toString());
+			map.put("SALES_TAX", objects[2].toString());
+			map.put("REGISTRATION_FEES", objects[3].toString());
+			map.put("VEHICLE_FEES", objects[4].toString());
+			map.put("TITLE_FEES", objects[5].toString());
+			map.put("WEIGHT_FEES", objects[6].toString());
+			map.put("PLATETYPE_FEES", objects[7].toString());
+			map.put("VEHICLEIDENTIFICATIONNUMBER", objects[8].toString());
+			
+			map.put("LOCATIONRATEURL", objects[9].toString());
+			map.put("SALETAXURL", objects[10].toString());
+			map.put("RTAURL", objects[11].toString());
+			map.put("TITLEFEESURL", objects[12].toString());
+			map.put("REGISTRATIONFEESURL", objects[13].toString());
+			map.put("VEHICLETYPEURL", objects[14].toString());
+			map.put("WEIGHTURL", objects[15].toString());
+			map.put("PLATETYPEURL", objects[16].toString());
+			map.put("VINURL", objects[17].toString());
+			result.add(map);
+		}
+		return result;
+	}
+
+	@Override
+	public List<Map<String, String>> getTaxes(ObjectNode jsonData) {
+		
+		
+		String plus4=jsonData.get("plus4").textValue();
+		String zip=jsonData.get("zip").textValue();
+		String rName=jsonData.get("state").textValue();
+		String cName=jsonData.get("county").textValue();
+		String modelMake = jsonData.get("vehicleMake").textValue();
+		String modelName = jsonData.get("vehicleModel").textValue();
+		Integer modelYear = Integer.parseInt(jsonData.get("vehicleYear").textValue()); 
+		String modelTrim = jsonData.get("vehicleTrim").textValue();
+		String plateType = jsonData.get("plateType").textValue();
+		String carWeight = jsonData.get("weight") != null ? jsonData.get("weight").textValue():null; 
+		
+		if(carWeight == null || carWeight == ""){
+			List<Map<String ,String>>  taxData = getAllSaleTax(1.0,Integer.parseInt(plus4),Integer.parseInt(zip), rName, cName, modelMake, modelName,modelYear,modelTrim,plateType);
+			return taxData;
+		}
+		
+		List<Object[]> list=saleTaxDao.getTaxWithWeightInfo(Integer.parseInt(carWeight),Integer.parseInt(plus4),Integer.parseInt(zip), rName, cName, modelMake, modelName,modelYear,modelTrim,plateType);
+		List<Map<String ,String>> result=list.size()>0?new ArrayList<Map<String,String>>():null;
+		for (Object[] objects : list) {
+			Map<String ,String> map= new HashMap<String, String>();
+			map.put("LOCATION_RATE", objects[0].toString());
+			map.put("RTA", objects[1].toString());
+			map.put("SALES_TAX", objects[2].toString());
+			map.put("REGISTRATION_FEES", objects[3].toString());
+			map.put("VEHICLE_FEES", objects[4].toString());
+			map.put("TITLE_FEES", objects[5].toString());
+			map.put("WEIGHT_FEES", objects[6].toString());
+			map.put("PLATETYPE_FEES", objects[7].toString());
+			map.put("VEHICLEIDENTIFICATIONNUMBER", objects[8].toString());
+			
+			map.put("LOCATIONRATEURL", objects[9].toString());
+			map.put("SALETAXURL", objects[10].toString());
+			map.put("RTAURL", objects[11].toString());
+			map.put("TITLEFEESURL", objects[12].toString());
+			map.put("REGISTRATIONFEESURL", objects[13].toString());
+			map.put("VEHICLETYPEURL", objects[14].toString());
+			map.put("WEIGHTURL", objects[15].toString());
+			map.put("PLATETYPEURL", objects[16].toString());
+			map.put("VINURL", objects[17].toString());
+			map.put("WEIHHT_CHECK", objects[18].toString());
+			result.add(map);
+		}
+		return result;
+	}
+
+}

@@ -1,0 +1,13 @@
+jdbc.driverClassName = ${jdbc.driverClassName}
+jdbc.url = ${jdbc.url}
+jdbc.username = ${jdbc.username}
+jdbc.password = ${jdbc.password}
+hibernate.dialect = ${hibernate.dialect}
+hibernate.show_sql = ${hibernate.show_sql}
+hibernate.format_sql = ${hibernate.format_sql}
+hibernate.batch.size=20
+hibernate.c3p0.min_size= 5
+hibernate.c3p0.max_size = 10
+hibernate.c3p0.timeout = 120
+hibernate.current.session.context.class=thread
+rest.server.url=${rest.server.url}

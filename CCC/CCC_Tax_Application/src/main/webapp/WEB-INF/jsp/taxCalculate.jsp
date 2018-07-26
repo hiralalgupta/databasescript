@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Innodata Vehicle tax app</title>
+	
+<style>
+.modal{font-family:Roboto,Helvetica Neue,sans-serif; color:#000;}
+.modal a{color:#000;}
+.box{background-color:#fbfbfb; box-shadow:0 0px 4px 0px #cfcfcf; -webkit-box-shadow:0 0px 4px 0px #cfcfcf; -moz-box-shadow:0 0px 4px 0px #cfcfcf; -ms-box-shadow:0 0px 4px 0px #cfcfcf; padding:20px;  margin-top:10px;}
+.box h3{margin-top:0; margin-bottom:20px; font-size:18px; color:#777;border-bottom: 1px solid #ccc;    padding: 0 5px 15px;}
+.form-group{font-size: 11px;}
+.form-group label{font-weight:400; font-size: 14px;}
+.form-group .form-control{border-radius:0; height:35px; border-color:#e8e8e8;     margin-bottom: 10px;}
+.form-group .required{color:red;}
+
+/*******************************/
+#view-results .form-group label{white-space: nowrap;     text-overflow: ellipsis; overflow:hidden;}
+#resultsmodal .modal-body{max-height:600px; overflow-y:auto;}
+#resultsmodal .modal-header{    padding: 7px 13px;}
+#resultsmodal .box{padding:5px;}
+#resultsmodal .modal-body{padding: 0 10px; max-height:500px;}
+#resultsmodal .modal-footer {    padding: 10px 15px;}
+#resultsmodal .modal-footer .btn {    margin: 0;}
+#resultsmodal .form-group{margin-bottom:0;}
+#resultsmodal .form-group label{margin:0;}
+#resultsmodal .highlight-row {
+    color: #f07c7c;
+    padding: 4px 0;
+}
+#resultsmodal .highlight-row label {
+    font-size: 15px;
+}
+
+/*******************/
+.fees{background-color: #f5f8ff; }
+.fees .btn-default{    margin-top:5px;    padding: 0px 2px;    line-height: 100%;}
+.fees .form-group {margin-bottom: 0;}
+.fees .form-group label {line-height:21px; font-size: 14px;   display: inline-block;    margin: 0;}
+.fees .btn {margin:4px 0;}
+ /*label[title]:hover:after{
+    content: attr(title);
+    background: #e4a267; 
+    position: absolute;
+    margin: 10px 0px 20px 20px;
+    left: 15%;
+    top: 20%;}*/
+ .md-datepicker-input-mask {
+    height:auto;
+    width: 340px;
+    position: relative;
+    pointer-events: none;
+    cursor: text;
+    overflow: hidden;
+    background: transparent;
+}   
+
+.form-group.inline .form-control{    display: inline-block;   width: 170px !important;    margin: 0 21px;}
+.form-group.inline label {
+    min-width: 120px;
+}
+
+.select-optional {
+   /* background-color: #ece9e9;*/
+}
+
+.select-mandatoryoptional {
+    background-color:#dce8fa;
+}
+.select-optional .btn-default{margin-top:5px;}
+
+#view-results .innerbox h4 {
+    margin-top: 0;
+}
+
+.final__output{background-color: #E0F7FA;}
+.final__output tbody tr:nth-child(odd) {background:none;}
+.final__output tbody tr:nth-child(even) {background:none;}
+
+.final__output tbody tr:first-child th{}
+.final__output tbody tr:last-child td{font-weight:bold;}
+.final__output tbody tr th{border:0;}
+.final__output tbody tr td {
+    border-top-color: rgba(0,0,0,0.06);
+}
+.selectize-control{    width: 170px;    display: inline-block;    vertical-align: middle;    margin: 0 21px;}
+.selectize-control.single .selectize-input, .selectize-dropdown.single{    border-color: #e8e8e8;    background: #fff;}
+
+.panel{background:transparent; margin-bottom:0;}
+#resultsmodal .box h4 span{min-width:25%;     display: inline-block;}
+
+.innerbox.panel .form-group.inline label {
+    min-width: 250px;
+}
+
+#accordion .btn-default {
+    
+    padding: 0px 2px;
+    margin-top: 5px;
+    line-height: 100%;
+}
+.panel-collapse h4{font-size:16px;}
+
+a.arrowlink {
+    font-size: 20px;
+    padding: 0 2px; color: #777;
+}
+#view-results .innerbox h5 {
+    margin-top: 0;
+    font-size: 16px;
+    color: #5194c3;
+}
+
+.tooltip-inner{width:350px;}
+.fees-summary-value{display:inline-block; font-size: 18px;}
+.fees-summary-value label{font-weight:bold;     color: #777;}
+
+.errormsg {
+       color: red;
+    font-size: initial;
+    font-weight: bold;
+    overflow-x: hidden;
+    overflow-y: auto;
+    margin: 0;
+    text-align: center;
+    
+}
+.box .form-group {
+    margin-bottom: 7px;
+}
+</style>
+
+</head>
+<body>
+<div class="container">
+<!-- Form Start -->
+<div ng-controller="TaxCalculatorController as ctrl" ng-init="defaultInfo();"  layout-padding="" ng-cloak="" class="datepickerdemoBasicUsage">
+<form>
+	<div id="errormsg" class="errormsg">
+		<div ng-if="ctrl.errorResponse.errorCode == 1">
+				More than one county found. Please select the one.
+		</div>
+		<div ng-if="ctrl.errorResponse.errorCode != 1">
+			<div ng-repeat="error in ctrl.errorResponse.errors">
+				{{error}}
+			</div>
+		</div>	
+	</div>
+	<div class="box">
+		
+<h3>New Registered Owner Information</h3>
+	<div class="row">
+		<div class="col-md-4">
+			<div class="form-group inline"><label>State <span class="required">*</span></label>
+				<select id="StateId" ng-change="getPlateInfo();" ng-model="stateData" class="form-control">
+					<option ng-repeat="state in ctrl.stateData"  value="{{state}}">{{state.name}}</option>
+				 </select>
+			</div>
+		</div>
+		<div class="col-md-4">
+			<div class="form-group inline"><label>9 Digit ZIP Code <span class="required">*</span></label>
+				<autocomplete id="zipPlus4Id" ng-model="formData.zipPlus4Data" data="zipplus4List" on-type="updatezipPlus4" ></autocomplete>
+			</div>
+		</div>
+		<div ng-if="ctrl.countiesData" class="col-md-4">
+			<div class="form-group inline"><label>County <span class="required">*</span></label>
+				<select id="countyId" ng-model="formData.county" class="form-control">
+					<option value=""/>
+					<option ng-repeat="county in  ctrl.countiesData"  value="{{county}}">{{county}}</option>
+				</select>
+			</div>
+		</div>
+		
+		<div ng-if="ctrl.citiesData" class="col-md-4">
+			<div class="form-group inline"><label>City <span class="required">*</span></label>
+				<select id="cityId" ng-model="formData.city" class="form-control">
+					<option value=""/>
+					<option ng-repeat="city in  ctrl.citiesData track by $index" value="{{city}}">{{city}}</option>
+				</select>
+			</div>
+		</div>
+		
+	</div>
+
+	<div class="row">
+		<div class="col-md-4">
+			<div class="form-group"><label>Registration date <span class="required">*</span></label>
+				<md-datepicker id="registrationId" ng-model="formData.registrationDateUI" md-placeholder="Enter date"></md-datepicker>
+			</div>
+		</div>
+		
+		<div class="col-md-4">
+			<div class="form-group"><label>Loss date <span class="required">*</span></label>
+				<md-datepicker id="totaledId" ng-model="formData.totaledDateUI" md-placeholder="Enter date"></md-datepicker>
+			</div>
+		</div>
+		<div class="col-md-4">
+			<div class="form-group inline"><label>Vehicle Value <span class="required">*</span></label><input id="vehicleValue" ng-model="formData.vehicleValue" placeholder="Vehicle Value" type="text" class="form-control"></div>
+		</div>
+    </div>
+    
+     <div class="row">
+		<div class="col-md-4">
+			<div class="form-group inline"><label>MSRP <span class="required">*</span></label><input id="vehicleMSRPValue" ng-model="formData.vehicleMSRPValue" placeholder="MSRP" type="text" class="form-control"></div>
+		</div>
+		<div class="col-md-4" >	
+			<div class="form-group inline"><label>No. of Seats</label><input id="vehicleSeats" ng-model="formData.vehicleSeats" placeholder="No. of Seats" type="text" class="form-control"></div>
+		</div>
+	</div>
+    
+	</div>
+
+ <!--  <input type="hidden" ng-model="_csrf" name="${_csrf.parameterName}"  value="${_csrf.token}" />-->
+
+<div class="box">
+<h3>Title and/or Registration Application Vehicle Information</h3>
+<div class="row">
+		<div class="col-md-3">
+			<div class="form-group"><label style="color:#6769e4;" data-toggle="tooltip" data-placement="bottom" title="This data will be used to get the vehicle info in the final product. For POC purpose, vehicle details need to be selected">Vehicle Identification Number (VIN)</label><input id="VIN" ng-model="formData.VIN" placeholder="VIN" type="text" class="form-control"></div>
+		</div>
+		<div class="col-md-3">
+			<div class="form-group"><label>Vehicle Type <span class="required"></span> </label>
+				<select id="vehicleTypeId" ng-model="formData.vehicleType" class="form-control">
+					<option ng-repeat="vehicleInfo in  ctrl.vehicleTypeDataList" value="{{vehicleInfo}}">{{vehicleInfo}}</option>
+				</select>
+			</div>
+		</div>
+		<div class="col-md-3">
+			<div class="form-group"><label>Make <span class="required">*</span></label>
+				<select id="vehicleMakeId" ng-change="getvehicleDetail();" ng-model="formData.vehicleMake" class="form-control">
+					<option ng-repeat="vehicleInfo in  ctrl.vehicleMakeData" value="{{vehicleInfo[0]}}">{{vehicleInfo[0]}}</option>
+				</select>
+			</div>
+		</div>
+		<div class="col-md-3">
+			<div class="form-group"><label>Model <span class="required">*</span></label>
+				<select id="vehicleModelId"" ng-change="getVehcileYearData();"  ng-model="formData.vehicleModel" class="form-control">
+					<option ng-repeat="vehicle in  uniqueVehicleData " value="{{vehicle[0]}}">{{vehicle[0]}}</option>
+				</select>
+			</div>
+		</div>
+</div>
+	<div class="row">
+		
+		<div class="col-md-3">
+			<div class="form-group"><label>Year <span class="required">*</span></label>
+				<select id="vehicleYearId" ng-change="getVehcileTrimData();" ng-model="formData.vehicleYear" class="form-control">
+					<option ng-repeat="vehicle in  yearData | unique:'vehicle[1]' " value="{{vehicle[1]}}">{{vehicle[1]}}</option>
+				</select>
+			</div>
+		</div>
+		<div class="col-md-3" ng-if="stateName == 'GA' && formData.vehicleYear =='2013'">	
+			<div class="form-group"><label>Month <span class="required">*</span></label>
+				<select class="form-control" id="monthId" ng-model="formData.month" ng-options="currMonth.key as currMonth.value for currMonth in months"></select>
+			</div>
+		</div>
+		<div class="col-md-3">
+			<div class="form-group"><label>Model Trim </label>
+				<select id="vehicleTrimId"    ng-model="formData.vehicleTrim" class="form-control">
+				<option value=""/>
+					<option ng-repeat="vehicle in  trimData " value="{{vehicle[2]}}">{{vehicle[2]}}</option>
+				</select>
+			</div>
+		</div>
+		<div class="col-md-3">
+			<div class="form-group"><label>Plate Type</label>
+				<select id="plateTypeId" ng-model="formData.plateType" class="form-control">
+					<option value=""/>
+					<option ng-repeat="plate in  ctrl.plateTypeData" value="{{plate}}">{{plate}}</option>
+				</select>
+			</div>
+		</div>
+	</div>
+
+<div class="accordion-panel">
+	<a class="accordion-label" role="button" data-toggle="collapse" data-parent="#accordion" href="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+	<i class="more-less glyphicon glyphicon-plus"></i> Additional Information</a>
+	 
+	<div id="collapseOne" class="panel-collapse collapse" role="tabpanel" aria-labelledby="headingOne">
+
+
+		<div class="row">
+		<div class="col-md-4">
+		<div class="form-group"><label>Weight</label> <input id="vehicleWeight" ng-model="formData.weight" placeholder="Weight" type="text" class="form-control"></div>
+		</div>
+		<div class="col-md-4">
+		<div class="form-group"><label>Body Style <input placeholder="Body Style" type="text" class="form-control"></div>
+		</div>
+		<div class="col-md-4">
+		<div class="form-group"><label>Fuel Type <input placeholder="Fuel Type" type="text" class="form-control"></div>
+		</div>
+		</div>
+		<div class="row">
+		<div class="col-md-6">
+		<div class="form-group"><label>Seating Capacity</label> <input placeholder="Seating Capacity" type="text" class="form-control"></div>
+		</div>
+		</div>
+	</div>
+</div>
+<!-- <button focus-index="1" class="btn btn-primary" data-toggle="modal" focus-element="autofocus" data-target=".bs-example-modal-lg">Large modal</button> -->
+<div class="btn-bar text-center"><input id="submitButton" style="margin:0;" data-ng-click="submit()" type="button" value="Get Tax and Fee Calculation" class="btn btn-primary btn-lg"   class="btn btn-primary"  ></div>
+</div>
+</form>
+
+
+
+<div class="modal fade bs-example-modal-lg" id="resultsmodal"  focus-group focus-group-head="loop" focus-group-tail="loop" focus-stacktabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+		  <div class="modal-dialog" style="width:auto;">
+			<div class="modal-content modal-lg">
+			  <div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+				<h4 class="modal-title" id="myModalLabel" style="display:inline-block;">Summary of Fees</h4>
+				<div class="fees-summary-value"><label> - $</label><label id="Summary of Fees" style="margin-right: 20px;margin-top: -30px;margin-bottom: 0px;">
+				{{((TaxDetailForm.totalSalesFeesDataValue*1)+(TaxDetailForm.totalRegFee*1)+(TaxDetailForm.totalTitleFee*1)+ (TaxDetailForm.salesTaxWithDollar)+				
+				(totalofOptionalFee*1)+(TaxDetailForm.totalTRA*1)+(totalNonApprovedFee*1)).toFixed(2);}}
+				</label></div>
+				<button type="button" class="btn btn-link" title="Export to Excel" ng-click="getExcelReport()" style="float: right; margin-right:15px;margin-top: -10px;margin-bottom: 0px;">
+					<img alt="Export to Excel" width="25px;" height="25px;" src="static/images/excel.png">
+				</button>
+			  </div>
+			  <div class="modal-body">
+			  	<form class="ng-pristine ng-valid">
+					<div class="box" id="view-results">
+						<div id="accordion">
+							<div  class="innerbox">
+							<div class="row"><div class="col-md-6"><h4><span>Sales Tax :</span></h4></div> <div class="col-md-2"><h4><label>$</label><label id="totalSalesFeesDataValue" ng-bind="TaxDetailForm.totalSalesFeesDataValue">{{$scope.totalSalesFeesDataValue}}</label> </h4></div><div class="col-md-4"><a class="arrowlink" data-toggle="collapse" data-parent="#accordion" href="#collapse1"><i class="fa fa-toggle-down"></i></a></div></div>
+								 
+								<div class="panel-collapse collapse in" id="collapse1">	
+									<div ng-repeat="tax in salesTaxWithPercent" class="row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{tax.url}}" target="_blank">{{tax.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label id="{{tax.name}}"><a href="{{tax.url}}" target="_blank">{{tax.taxValue}}</a></label></div>
+										</div>
+										
+										<div ng-if="tax.check == 'undefined' || tax.check == '' || tax.check == null || tax.check == false" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="addFeeInSalesFees(tax);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+										<div ng-if="tax.check == true" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" ng-click="addFeeInSalesFees(tax);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+									<div ng-repeat="tax in salesTaxWithDollar" class="row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{tax.url}}" target="_blank">{{tax.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label id="{{tax.name}}"><a href="{{tax.url}}" target="_blank">{{tax.value}}</a></label></div>
+										</div>
+										<div ng-if="tax.check == 'undefined' || tax.check == '' || tax.check == null || tax.check == false" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="addFeeInSalesFeesDollar(tax);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+										<div ng-if="tax.check == true" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" ng-click="addFeeInSalesFeesDollar(tax);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+								</div>
+							</div>
+							 <div  class="innerbox">
+							 <div class="row"><div class="col-md-6"><h4><span>Other Taxes and Fees : </span></h4></div><div class="col-md-2"><h4><label>$</label><label id="Other Taxes and Fees">{{((TaxDetailForm.totalRegFee*1)+(TaxDetailForm.totalTitleFee*1)+(totalofOptionalFee*1)+(TaxDetailForm.totalTRA*1)+(totalNonApprovedFee*1)).toFixed(2)}}</label></h4></div><div class="col-md-4"><a class="arrowlink" data-toggle="collapse" data-parent="#accordion" href="#collapse2"><i class="fa fa-toggle-down"></i></a></div></div>
+							 
+							<div class="panel-collapse collapse in" id="collapse2">
+							
+							<div ng-if="rtaTax.length>0" class="innerbox">
+							<div class="row"><div class="col-md-6"><h4><span>RTA: </span></h4></div><div class="col-md-6"><h4><label>$</label><label id="totalTRA" ng-bind="TaxDetailForm.totalTRA">{{TaxDetailForm.totalTRA}}</label> <a data-toggle="collapse" data-parent="#collapse2" href="#collapse2-4"><i class="fa fa-toggle-down"></i></a></h4></div></div>
+								 
+								<div class="panel-collapse collapse in" id="collapse2-4">	
+									<div ng-repeat="fees in rtaTax" class="row">
+										<div class="col-md-6">
+											<div class="form-group"><label id="{{fees.name}}"><a href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label><a href="{{fees.url}}" target="_blank">{{fees.taxValue+0 |number}}</a></label></div>
+										</div>
+										
+										<div ng-if="fees.check == 'undefined' || fees.check == '' || fees.check == null || fees.check == false" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="editRTAFees(fees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+										<div ng-if="fees.check == true" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" ng-click="editRTAFees(fees);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+										</div>
+										
+									</div>
+								</div>
+								
+							</div>
+							
+							
+							<div ng-if="titleFeesData != null || titleOptionalFeesData != null " class="innerbox">
+							<div class="row"><div class="col-md-6"><h5><span>Title Fees: </span></h5></div><div class="col-md-2"><h4><label>$</label><label id="totalTitleFee" ng-bind="TaxDetailForm.totalTitleFee">{{TaxDetailForm.totalTitleFee}}</label></h4></div><div class="col-md-4"><a class="arrowlink" data-toggle="collapse" data-parent="#collapse2" href="#collapse2-1"><i class="fa fa-toggle-down"></i></a></div></div>
+								 
+								<div class="panel-collapse collapse in" id="collapse2-1">	
+									<div ng-repeat="fees in titleFeesData" class="row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label id="{{fees.name}}"><a href="{{fees.url}}" target="_blank">{{fees.value}}</a></label></div>
+										</div>
+										
+										<div ng-if="fees.check == 'undefined' || fees.check == '' || fees.check == null || fees.check == false" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removeTitleFees(fees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+										<div ng-if="fees.check == true" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" ng-click="removeTitleFees(fees);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+										</div>
+										
+									</div>
+								</div>
+								
+							</div>
+							
+							<div ng-if="titleOptionalFeesData.length>0" class="innerbox">
+								
+								<h4>Title Conditional Fees</h4>
+									<div class="row" style="margin-bottom: 9px;">
+										<div class="col-xs-3">
+												<div class="form-group"><label>Select title Conditional fees</label></div>
+										</div>
+										<div class="col-xs-5">
+												<select ng-model="TaxDetailForm.titleoptionalFee" ng-change="setTitleFeesType();" class="form-control">
+													<option ng-repeat="TOF in titleOptionalFeesData"  value="{{TOF}}">{{TOF.name}}</option>
+												 </select>
+										</div>
+										<div class="col-xs-4">
+												<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" style="margin-top: 5px;" ng-click="addTitleOptionalFees();" ><i class="fa fa-plus" aria-hidden="true"></i></i></button>
+										</div>
+									</div>
+									
+									<div ng-if="showTitleText" class="row" style="margin-bottom: 29px;">
+										<div class="col-xs-3"><div class="form-group"><label>Enter fees</label></div></div>
+										<div class="col-xs-3">
+												<div class="form-group"><input placeholder="optionalFee" ng-model="TaxDetailForm.titleoptinalFeeText" type="text" style="width: 120px;"  class="form-control"></div>
+										</div>
+										<div class="col-xs-6">
+										<label>{{titlefeesDescription}}{{titlefeesRangeValue}} </label>
+										</div>
+										 
+									</div>
+									
+									<div ng-repeat="titlefees in reverse(titleoptionalFeesObject)" class="fees row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{urlTitleOptionalFee}}" target="_blank">{{titlefees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label><a href="{{urlTitleOptionalFee}}" target="_blank">{{titlefees.value}}</a></label></div>
+										</div>
+										<div class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removetitleOptionalFees(titlefees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+							</div>
+							
+							
+							<div ng-if="registrationTaxData" class="innerbox">
+							<div class="row"><div class="col-md-6"><h5><span>Registration Fees: </span></h5></div><div class="col-md-2"><h4><label>$</label><label id="totalRegFee">{{(TaxDetailForm.totalRegFee*1).toFixed(2);}}</label> </h4> </div><div class="col-md-4"><a class="arrowlink" data-toggle="collapse" data-parent="#collapse2" href="#collapse2-2"><i class="fa fa-toggle-down"></i></a></div></div>
+							
+							<div class="panel-collapse collapse in" id="collapse2-2">	
+									<div ng-repeat="fees in registrationTaxData" class="row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label id="{{fees.name}}"><a href="{{fees.url}}" target="_blank">{{fees.unit == '$'?fees.value:fees.taxValue}}</a></label></div>
+										</div>
+										
+										<div ng-if="fees.check == 'undefined' || fees.check == '' || fees.check == null || fees.check == false" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removeRegFees(fees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+										<div ng-if="fees.check == true" class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" ng-click="removeRegFees(fees);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+								</div>
+								
+							</div>
+							
+							<div ng-if="optinalFeesData" class="innerbox">
+							<div class="row"><div class="col-md-6"><h5><span>Conditional Fees:</span></h5></div><div class="col-md-2"><h4><label>$</label><label>{{((totalofOptionalFee*1)+(totalNonApprovedFee*1)).toFixed(2);}}</label></h4></div><div class="col-md-4"><a class="arrowlink" data-toggle="collapse" data-parent="#collapse2" href="#collapse2-3"><i class="fa fa-toggle-down"></i></a></div></div>
+								
+    <div class="panel-collapse collapse in" id="collapse2-3">
+    
+    	    <div ng-repeat="fees in totalMandatoryOptionalData" class="fees row select-mandatoryoptional">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label><a href="{{fees.url}}" target="_blank">{{fees.unit == '$'?fees.value:fees.taxValue}}</a></label></div>
+										</div>
+										<div ng-if="fees.check == null || fees.check=='true'" >
+											<div class="col-md-4">
+												<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" style="margin-top: 5px;" ng-click="addFeeInOptionalFees(fees);" ><i class="fa fa-plus" aria-hidden="true"></i></button>
+											</div>
+										</div>
+										<div ng-if="fees.check !=null && fees.check=='false'"  >
+											<div class="col-md-4">
+												<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removeOptionalFees(fees,true);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+											</div>
+										</div>
+									</div> 
+									
+									<div ng-repeat="fees in reverse(optionalFeesObject)" class="fees row select-optional">
+										<div class="col-md-6">
+											<div class="form-group"><label><a href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label>$</label><label><a href="{{fees.url}}" target="_blank">{{fees.unit == '$'?fees.value:fees.taxValue}}</a></label></div>
+										</div>
+										<div class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removeOptionalFees(fees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+									
+									<div ng-repeat="fees in reverse(selectedNonApprovedFee)" class="fees row">
+										<div class="col-md-6">
+											<div class="form-group"><label><a style="color:rgb(236, 39, 39);" href="{{fees.url}}" target="_blank">{{fees.name}}</a></label></div>
+										</div>
+										<div class="col-md-2">
+											<div class="form-group"><label style="color:rgb(236, 39, 39);">$</label><label><a style="color:rgb(236, 39, 39);" href="{{fees.url}}" target="_blank">{{fees.unit == '$'?fees.value:fees.taxValue}}</a></label></div>
+										</div>
+										<div class="col-md-4">
+											<button type="button" data-toggle="tooltip" data-placement="top" title="Delete Fee" class="btn-default" ng-click="removeNonApprovedFee(fees);"><i class="fa fa-minus" aria-hidden="true"></i></button>
+										</div>
+									</div>
+									
+									<div class="row" style="margin-bottom: 9px;margin-top: 8px;">
+										<div class="col-xs-3">
+												<div class="form-group"><label data-toggle="tooltip" data-placement="bottom"   title="Conditional fees may be selected from the displayed fees or from the dropdown list. Red font in the dropdown list shows the unapproved fees">Other Conditional fees</label></div>
+										</div>
+										<div class="col-xs-5">
+												<select id="optinalFee" ng-model="TaxDetailForm.optinalFee" ng-change="setFeesType();" class="form-control" init-from-form>
+													<option ng-repeat="OF in optinalFeesData"  value="{{OF}}">{{OF.name}}</option>
+													<option style="color:#f07c7c;" ng-repeat="OF in additionalOptionalFeesData"  value="{{OF}}">{{OF.name}}</option>
+												 </select>
+										</div>
+										<div class="col-xs-4">
+												<button type="button" data-toggle="tooltip" data-placement="top" title="Add Fee" class="btn-default" style="margin-top: 5px;" ng-click="addOptionalFees();" ><i class="fa fa-plus" aria-hidden="true"></i></i></button>
+										</div>
+									</div>
+									
+									<div ng-if="showText" class="row" style="margin-bottom: 29px;">
+										<div class="col-xs-3"><div class="form-group"><label>Enter fees</label></div></div>
+										<div class="col-xs-3">
+												<div class="form-group"><input placeholder="optionalFee" ng-model="TaxDetailForm.optinalFeeText" type="text" style="width: 120px;"  class="form-control"></div>
+										</div>
+										<div class="col-xs-6">
+										<label>{{feesDescription}}{{feesRangeValue}} </label>
+										</div>
+										 
+									</div>
+							</div>
+							</div>
+						</div>
+						</div>
+						</div>
+						</div>
+						</form>
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-default" id="closePopup" focus-element="autofocus" data-dismiss="modal">Close</button>
+				<!-- <button type="button" class="btn btn-primary">Save changes</button> -->
+			  </div>
+			</div>
+		  </div>
+
+</div> 	
+
+
+<!-- <div class="modal fade bs-example-modal-display" id="resultsmodal"  focus-group focus-group-head="loop" focus-group-tail="loop" focus-stacktabindex="0" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true">
+		  <div class="modal-dialog">
+			<div class="modal-content">
+			 <div class="modal-header">
+				<button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+				<h4 class="modal-title" id="myModalLabel">Additional Optional Fees</h4>
+			  </div>
+			  <div class="modal-body" style="max-height:500px;     min-height: 140px; overflow:auto;">
+			  <div ng-if="additionalOptionalFeesData" class="innerbox">
+				  <div class="table-responsive">
+					  <table class="table">
+					  <tr>
+					  <th width="10%"></th>
+					  <th width="70%" style="text-align:center;">Fees Type</th>
+					  <th width="20%" style="text-align:center;">Fees Amount</th>
+					  </tr>
+					  <tr ng-repeat="nonApprovedFee in additionalOptionalFeesData ">
+					  	<td>
+						    <input type="checkbox" name="selectedFees[]" ng-model="nonApprovedFee.selected" value={{nonApprovedFee}} />
+						</td>
+					  	<td><a href="{{nonApprovedFee.url}}" target="_blank">{{nonApprovedFee.name}}</a></td>
+					  	<td style="text-align:center;"><a href="{{nonApprovedFee.url}}" target="_blank">{{nonApprovedFee.unit}}{{nonApprovedFee.value}}</a></td>
+					  </tr>
+					  </table>
+				  </div>
+			  </div>
+			  
+			  </div>
+			   <div class="modal-footer" style="padding:5px; text-align:center;">
+				<button style="margin:0;" type="button" class="btn btn-default" focus-element="autofocus" data-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary">Save changes</button>
+			  </div>
+			</div>
+		  </div>
+
+</div> 	 -->
+
+
+
+</form>
+</div>
+<!-- Form End -->
+</div>
+</body>
+</html>

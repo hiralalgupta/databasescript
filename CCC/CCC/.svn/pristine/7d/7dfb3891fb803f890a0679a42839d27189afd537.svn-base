@@ -1,0 +1,40 @@
+package com.ccc.jsonview;
+
+import com.fasterxml.jackson.annotation.JsonView;
+
+public class AjaxResponseBody<String,Object> {
+	
+	@JsonView(Views.Public.class)
+	Object obj;
+
+/*	@JsonView(Views.Public.class)
+	List<Map<String, String>> objList;
+	*/
+	/*@JsonView(Views.Public.class)
+	HashMap<String,Object> mapList;
+*/
+	public Object getObj() {
+		return obj;
+	}
+
+	public void setObj(Object obj) {
+		this.obj = obj;
+	}
+
+	/*public List<Map<String, String>> getObjList() {
+		return objList;
+	}
+
+	public void setObjList(List<Map<String, String>> objList) {
+		this.objList = objList;
+	}*/
+
+	/*public HashMap<String, Object> getMapList() {
+		return mapList;
+	}
+
+	public void setMapList(HashMap<String, Object> mapList) {
+		this.mapList = mapList;
+	}*/
+	
+}

@@ -1,0 +1,67 @@
+package com.ccc.webapp.util;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.http.HttpStatus;
+
+public class ErrorResponse {
+
+	private HttpStatus status;
+	private String errorMsg;
+	private String errorCode;
+	private List<String> errors;
+	
+	public ErrorResponse() {
+		super();
+	}
+
+	public ErrorResponse(HttpStatus status, String errorMsg, List<String> errors) {
+		super();
+		this.status = status;
+		this.errorMsg = errorMsg;
+		this.errors = errors;
+	}
+
+	public ErrorResponse(HttpStatus status, String errorMsg, String errorCode, String error) {
+		super();
+		this.status = status;
+		this.errorMsg = errorMsg;
+		this.errorCode = errorCode;
+		this.errors = Arrays.asList(error);
+	}
+
+	public HttpStatus getStatus() {
+		return status;
+	}
+
+	public void setStatus(HttpStatus status) {
+		this.status = status;
+	}
+
+	public String getErrorMsg() {
+		return errorMsg;
+	}
+
+	public void setErrorMsg(String errorMsg) {
+		this.errorMsg = errorMsg;
+	}
+
+	public String getErrorCode() {
+		return errorCode;
+	}
+
+	public void setErrorCode(String errorCode) {
+		this.errorCode = errorCode;
+	}
+
+	public List<String> getErrors() {
+		return errors;
+	}
+
+	public void setErrors(List<String> errors) {
+		this.errors = errors;
+	}
+}

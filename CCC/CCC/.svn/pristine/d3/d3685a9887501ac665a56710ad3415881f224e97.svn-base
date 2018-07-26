@@ -1,0 +1,230 @@
+package com.ccc.webapp.controller;
+
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.ModelMap;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.servlet.ModelAndView;
+
+import com.ccc.component.UserDTO;
+import com.ccc.jsonview.AjaxResponseBody;
+import com.ccc.model.Role;
+import com.ccc.model.User;
+import com.ccc.model.UserRole;
+import com.ccc.service.UserService;
+import com.ccc.webapp.security.configuration.SessionUtils;
+import com.ccc.webapp.util.ControllerUtil;
+
+
+
+
+@Controller
+public class UserController {
+	
+	@Autowired
+	UserService userService;
+	
+	@Autowired
+	UserDTO userDTO;
+	HttpSession session=null;
+		@RequestMapping(value = { "/", "/home" }, method = RequestMethod.GET)
+	    public String homePage(ModelMap model) {
+	        model.addAttribute("parameter", "index");
+	        return "login";
+	    }
+
+	    @RequestMapping(value = "/profilemgmt", method = RequestMethod.GET)
+	    public ModelAndView profileManagement(ModelMap model) {			
+	    	ModelAndView usermav = setUserData();
+	    	return usermav;
+	    }
+	    
+	    @RequestMapping(value = "/createprofile", method = RequestMethod.POST)
+	    public ModelAndView createProfile(@ModelAttribute User updatedUserData) {	
+	    	User user = userService.findById(ControllerUtil.getPrincipalUser().getUserId());
+	    	user.setFirstName(updatedUserData.getFirstName());
+	    	user.setEmail(updatedUserData.getEmail());
+	    	user.setPhone(updatedUserData.getPhone());
+	    	user.setPassword(updatedUserData.getPassword());
+	    	userService.save(user);
+	    	ModelAndView usermav = setUserData();
+	    	usermav.addObject("message","Profile updated successfully.");
+	    	return usermav;
+	    } 
+	    
+	    private ModelAndView setUserData(){
+	    	User user = userService.findById(ControllerUtil.getPrincipalUser().getUserId());
+	    	ModelAndView mav = new ModelAndView("user");
+	        mav.addObject("parameter", "dashboard"); 
+	        mav.addObject("tab", "profilemgmt");
+	        mav.addObject("userDetails", user); 
+	        mav.setViewName("profilemanagement");
+	        return mav;
+	    }
+	    
+	    @RequestMapping(value = "/hello", method = RequestMethod.GET)
+	    public @ResponseBody String helloWorld() {
+	         return "Hello World!";
+	    }
+	    
+	 /*   @JsonView(Views.Public.class)//To filter the views as defined in use object
+	    @RequestMapping(value = "/admin/getuserDetails/{id}", method = RequestMethod.GET)
+	    public @ResponseBody AjaxResponseBody<User> adminUser(@PathVariable Long id) {
+	        User user = ControllerUtil.getPrincipalUser();
+	        System.out.println("Admin User page Called");
+	        AjaxResponseBody<User> ajaxResponse= new AjaxResponseBody<>();
+	        ajaxResponse.setObj(user);
+	        User user2= new User(3l, "Amathur", "abc", "abc@gm.com", 01);
+	        User user3= new User(4l, "Smathur", "ebc", "ebc@gm.com", 01);
+	        User user4= new User(5l, "Skumar", "sbc", "sbc@gm.com", 01);
+	        List<User> list= new ArrayList<User>();
+	        list.add(user);
+	        list.add(user2);
+	        list.add(user3);
+	        list.add(user4);
+	        ajaxResponse.setObjList(list);
+	        return ajaxResponse;
+	    }*/
+	   /* @JsonView(Views.Public.class)//To filter the views as defined in use object
+	    @RequestMapping(value = "/getuserDetails/{id}", method = RequestMethod.GET)
+	    public @ResponseBody AjaxResponseBody<User> adminUser(@PathVariable Long id) {
+	        User user = getPrincipalUser();
+	        System.out.println("Admin User page Called");
+	        AjaxResponseBody<User> ajaxResponse= new AjaxResponseBody<>();
+	        ajaxResponse.setObj(user);
+	        return ajaxResponse;
+	    }*/
+	    @RequestMapping(value = "/db", method = RequestMethod.GET)
+	    public String dbaPage(ModelMap model) {
+	        model.addAttribute("user", ControllerUtil.getPrincipal());
+	        return "dba";
+	    }
+	   /* @RequestMapping(value = "/loginSuccess", method = RequestMethod.GET)
+	    public void calledAdminPage(ModelMap model) {
+	       model.addAttribute("user", getPrincipal());
+	    	System.out.println("callled Admin");
+	    }*/
+	 
+	    @RequestMapping(value = "/Access_Denied", method = RequestMethod.GET)
+	    public String accessDeniedPage(ModelMap model) {
+	        model.addAttribute("user", ControllerUtil.getPrincipal());
+	        return "accessDenied";
+	    }
+	 
+	    @RequestMapping(value = "/login", method = RequestMethod.GET)
+	    public String loginPage(ModelMap model) {
+	    	model.addAttribute("parameter", "login");
+	    	return "login";
+	    }
+	    
+	    @RequestMapping(value = "/register", method = RequestMethod.GET)
+	    public String userRegistrationPage(ModelMap model) {
+	    	model.addAttribute("parameter", "register");
+	    	return "userregistration";
+	    }
+	 
+	    @RequestMapping(value="/logout", method = RequestMethod.GET)
+	    public String logoutPage (HttpServletRequest request, HttpServletResponse response) {
+	        /*Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+	        if (auth != null){    
+	            new SecurityContextLogoutHandler().logout(request, response, auth);
+	        }*/
+	    	SessionUtils.logout(request);
+	        return "redirect:/login?logout";
+	    }
+	    //searchUser() method for user details...
+	    @RequestMapping(value="/searchuser", method = RequestMethod.POST)
+	    public @ResponseBody AjaxResponseBody<String, User> searchUser(@RequestBody User userData) {
+			AjaxResponseBody<String,User> ajaxResponse= new AjaxResponseBody<String,User>();
+			//System.out.println("in search user controller");
+			List<User> userInfo=null;
+			List <String> message=null;
+	    	if(userData.getFirstName()!=null || userData.getEmail()!=null || userData.getUserName()!=null){
+	    		userInfo=userService.getUserDetails(userData);
+	    	    userDTO.setUser(userInfo);
+	    		/*session=req.getSession();
+	    		session.setAttribute("searchUserList", userInfo);*/
+	    	}
+	    	if(userInfo==null || userInfo.size()==0){
+	    		//mav.addObject("message", "No Record found,Please try again...");
+	    		//ajaxValidationMessage.setObjList(message);
+	    		//return ajaxValidationMessage;
+	    	}
+	    	else{
+	    		//ajaxResponse.setObjList(userInfo);
+	    	}
+	        return ajaxResponse;
+		}
+	/*    //createUser() method for new user....
+	    @RequestMapping(value="/createuser/{clientId}", method = RequestMethod.POST)
+	 	 public @ResponseBody AjaxResponseBody  createUser(@RequestBody User userObject,@PathVariable Integer clientId) {
+	 		AjaxResponseBody ajaxResponse= new AjaxResponseBody();
+	 		//get Client object
+	    	Client clientObject=clientService.getClient(clientId);
+	    	userObject.set_client(clientObject);
+	    	boolean flag=userService.createUser(userObject);
+	    	//System.out.println("flag is"+flag);
+	    	if (flag==true){
+	    		ajaxResponse.setObj("true");
+	    	}
+	    	else{
+	    		ajaxResponse.setObj("false");
+	    	}
+	        return ajaxResponse;
+	    }*/
+	    //method for update user details..
+	 /*   @RequestMapping(value="/edituser", method = RequestMethod.POST)
+	    public @ResponseBody AjaxResponseBody  editUser(@RequestBody User userObject ) {
+	    	User userListObject=null;
+			AjaxResponseBody ajaxResponse= new AjaxResponseBody();
+			//System.out.println("in edit user controller"+userObject);
+			List<User> searchedUser=(List<User>) userDTO.getUser();
+			System.out.println("session user object"+searchedUser);
+			for (User temp : searchedUser) {
+				userListObject=temp;
+				userListObject.setUserId(temp.getUserId());
+				userListObject.setFirstName(userObject.getFirstName());
+				userListObject.setEmail(userObject.getEmail());
+				userListObject.setUserName(userObject.getUserName());
+				userListObject.setAccountStatus(userObject.getAccountStatus());
+				userListObject.set_client(temp.get_client());
+			}
+			boolean flag=userService.editUser(userListObject);
+	    	if (flag==true){
+	    		ajaxResponse.setObj("true");
+	    	}
+	    	else{
+	    		ajaxResponse.setObj("false");
+	    	}
+			return ajaxResponse;
+		}*/
+	    //method for assign role to user..
+	    @RequestMapping(value="/assignrole/{roleId}", method = RequestMethod.POST)
+	    public @ResponseBody AjaxResponseBody  assignRole(@RequestBody User userObject,@PathVariable Long roleId) {
+			AjaxResponseBody ajaxResponse= new AjaxResponseBody();
+			User user = userService.findById(userObject.getUserId());
+			Role role=userService.getRoleById(roleId);
+			UserRole userRole=new UserRole();
+			userRole.setUser(user);
+			userRole.setRole(role);
+			boolean flag=userService.assignRole(userRole);
+			if (flag==true){
+	    		ajaxResponse.setObj("true");
+	    	}
+	    	else{
+	    		ajaxResponse.setObj("false");
+	    	}
+			return ajaxResponse;
+		}
+}

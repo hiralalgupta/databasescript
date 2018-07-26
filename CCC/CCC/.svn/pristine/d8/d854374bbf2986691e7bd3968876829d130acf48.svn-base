@@ -1,0 +1,476 @@
+package com.ccc.service.impl;
+
+import java.text.DecimalFormat;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
+
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.model.TaxObject;
+import com.ccc.service.SaleTaxService;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+@Transactional(readOnly=true)
+@Service
+public class SaleTaxServiceImpl implements SaleTaxService {
+
+	@Autowired
+	private SaleTaxDao saleTaxDao;
+	
+	@Override
+	public List<Map<String ,String>> getAllSaleTax(double totalAmount,Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear
+			, String modelTrim,String plateType) {
+		List<Object[]> list=saleTaxDao.getSaleTax(plus4,zip,rName,cName, modelMake, modelName, modelYear,modelTrim,plateType,null);
+		List<Map<String ,String>> result=list.size()>0?new ArrayList<Map<String,String>>():null;
+		for (Object[] objects : list) {
+			Map<String ,String> map= new HashMap<String, String>();
+			map.put("LOCATION_RATE", objects[0].toString());
+			map.put("RTA", objects[1].toString());
+			map.put("SALES_TAX", objects[2].toString());
+			map.put("REGISTRATION_FEES", objects[3].toString());
+			map.put("VEHICLE_FEES", objects[4].toString());
+			map.put("TITLE_FEES", objects[5].toString());
+			map.put("WEIGHT_FEES", objects[6].toString());
+			map.put("PLATETYPE_FEES", StringUtils.isEmpty(plateType)?"0":objects[7].toString());
+			map.put("VIN_FEES", objects[8].toString());
+			DecimalFormat df = new DecimalFormat("###.####");
+			
+			double totalSalesTax = Double.valueOf(objects[0].toString()) + Double.valueOf(objects[1].toString()) +Double.valueOf(objects[2].toString()) ;
+			double totalTitleFee = Double.valueOf(objects[5].toString());
+			double totalRegistrationFee = Double.valueOf(objects[3].toString()) + Double.valueOf(objects[4].toString()) +Double.valueOf(objects[6].toString()) 
+					+ Double.valueOf(StringUtils.isEmpty(plateType)?"0":objects[7].toString()) +Double.valueOf(objects[8].toString());
+			
+			map.put("TOTALSALESTAX", String.valueOf(df.format(totalSalesTax)));
+			map.put("TOTALTITLEFEES", String.valueOf(df.format(totalTitleFee)));
+			map.put("TOTALREGFEES", String.valueOf(df.format(totalRegistrationFee)));
+			map.put("LOCATIONRATEURL", objects[9].toString());
+			map.put("SALETAXURL", objects[10].toString());
+			map.put("RTAURL", objects[11].toString());
+			map.put("TITLEFEESURL", objects[12].toString());
+			map.put("REGISTRATIONFEESURL", objects[13].toString());
+			map.put("VEHICLETYPEURL", objects[14].toString());
+			map.put("WEIGHTURL", objects[15].toString());
+			map.put("PLATETYPEURL", StringUtils.isEmpty(plateType)? "":objects[16].toString());
+			map.put("VINURL", objects[17].toString());
+			result.add(map);
+		}
+		return result;
+	}
+
+	@Override
+	public List<TaxObject> getTaxes(ObjectNode jsonData) {
+		
+		
+		String plus4=jsonData.get("plus4").textValue();
+		String zip=jsonData.get("zip").textValue();
+		String rName=jsonData.get("state").textValue();
+		String cName=jsonData.get("county").textValue();
+		String modelMake = jsonData.get("vehicleMake").textValue();
+		String modelName = jsonData.get("vehicleModel").textValue();
+		Integer modelYear = Integer.parseInt(jsonData.get("vehicleYear").textValue()); 
+		String modelTrim = jsonData.get("vehicleTrim")!= null ? jsonData.get("vehicleTrim").textValue():null;
+		String plateType = jsonData.get("plateType")!= null ? jsonData.get("plateType").textValue():null; 
+		String carWeight = StringUtils.isEmpty(jsonData.get("weight")) ? null:jsonData.get("weight").textValue(); 
+		String vehicleType = jsonData.get("vehicleType")!= null ? jsonData.get("vehicleType").textValue():null; 
+		String registrationDate = jsonData.get("registrationDate").textValue();
+		
+		
+		List<Object[]> list=saleTaxDao.getSaleTax(Integer.valueOf(plus4),Integer.valueOf(zip),rName,cName, modelMake, modelName, Integer.valueOf(modelYear),modelTrim,plateType,registrationDate);
+		int weight = StringUtils.isEmpty(carWeight)?saleTaxDao.getVehicleWeight(modelMake, modelName, modelYear, modelTrim):Integer.parseInt(carWeight);
+		
+		System.out.println("weight:: "+weight);
+		List<TaxObject> vehicleTypeFees = saleTaxDao.getVehicleTaxandFees(vehicleType, weight);
+		
+		List<Object[]> plateFees = saleTaxDao.getPlateTypeFees(rName, plateType);
+		List<Object[]> optionalFees = saleTaxDao.getOptionalFees(rName);
+		List<Object[]> countyOptionalFees = saleTaxDao.getOptionalFeesForCounty(rName, cName);
+		List<TaxObject> result=list.size()>0?new ArrayList<TaxObject>():null;
+		Map<String ,String> map= new HashMap<String, String>();
+		
+		
+		double totalRegFees = 0;
+		double totalTitleFees = 0;
+		double totalOptionalFees = 0;
+		
+		result.addAll(vehicleTypeFees);
+		
+		for (Object[] objects : list) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			
+			if(tax.getType().equals("TT") && tax.getUnit().equals("$"))
+				totalTitleFees = totalTitleFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			
+			result.add(tax);
+		}
+		
+		for (Object[] objects : plateFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + Double.valueOf(tax.getValue());
+			result.add(tax);
+		}
+		
+		for (Object[] objects : optionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			tax.setStatus(objects[7] != null ?objects[7].toString():"");
+			
+			if(tax.getStatus().equals("MO") && tax.getUnit().equals("$")){
+				//totalRegFees = totalRegFees + Double.valueOf(tax.getValue());
+				totalOptionalFees = totalOptionalFees + Double.valueOf(tax.getValue());
+			}
+			
+			result.add(tax);
+		}
+		
+		for (Object[] objects : countyOptionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			tax.setStatus(objects[7] != null ?objects[7].toString():"");
+			
+			result.add(tax);
+		}
+		
+		TaxObject tax = new TaxObject();
+		tax.setName("Total Registration Fees");
+		tax.setValue(String.valueOf(totalRegFees));
+		tax.setUnit("$");
+		tax.setType("TREG");
+		result.add(tax);
+		
+		tax = new TaxObject();
+		tax.setName("Total Title Fees");
+		tax.setValue(String.valueOf(totalTitleFees));
+		tax.setUnit("$");
+		tax.setType("TTF");
+		result.add(tax);
+		
+		tax = new TaxObject();
+		tax.setName("Total Optional Fees");
+		tax.setValue(String.valueOf(totalOptionalFees));
+		tax.setUnit("$");
+		tax.setType("TOOF");
+		result.add(tax);
+		
+		return result;
+		
+	}
+	
+	@Override
+	public List<TaxObject> getGenericTaxData(ObjectNode jsonData) {
+		
+		String rName=jsonData.get("state").textValue();
+		String cName=jsonData.get("county").textValue();
+		String modelMake = jsonData.get("vehicleMake").textValue();
+		String modelName = jsonData.get("vehicleModel").textValue();
+		Integer modelYear = Integer.parseInt(jsonData.get("vehicleYear").textValue()); 
+		String modelTrim = jsonData.get("vehicleTrim").textValue();
+		String plateType = jsonData.get("plateType")!= null ? jsonData.get("plateType").textValue():null; 
+		String carWeight = jsonData.get("weight") != null ? jsonData.get("weight").textValue():null; 
+		
+		
+		List<Object[]> list=saleTaxDao.getGenericTaxData(rName,cName, modelMake, modelName, modelYear,modelTrim,plateType);
+		List<Object[]> optionalFees = saleTaxDao.getOptionalFees(rName);
+		List<Object[]> countyOptionalFees = saleTaxDao.getOptionalFeesForCounty(rName, cName);
+		List<TaxObject> result=list.size()>0?new ArrayList<TaxObject>():null;
+		Map<String ,String> map= new HashMap<String, String>();
+		
+		
+		double totalRegFees = 0;
+		double totalTitleFees = 0;
+		
+		for (Object[] objects : list) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			
+			if(tax.getType().equals("TT") && tax.getUnit().equals("$"))
+				totalTitleFees = totalTitleFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			result.add(tax);
+		}
+		
+		for (Object[] objects : optionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			
+			result.add(tax);
+		}
+		
+		for (Object[] objects : countyOptionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			
+			result.add(tax);
+		}
+		
+		TaxObject tax = new TaxObject();
+		tax.setName("Total Registration Fees");
+		tax.setValue(String.valueOf(totalRegFees));
+		tax.setUnit("$");
+		tax.setType("TREG");
+		result.add(tax);
+		
+		tax = new TaxObject();
+		tax.setName("Total Title Fees");
+		tax.setValue(String.valueOf(totalTitleFees));
+		tax.setUnit("$");
+		tax.setType("TTF");
+		result.add(tax);
+		return result;
+	}
+
+	@Override
+	public List<TaxObject> getCitySpecificGenericTaxData(ObjectNode jsonData) {
+		String rName=jsonData.get("state").textValue();
+		String cName=jsonData.get("county").textValue();
+		String city=jsonData.get("city").textValue();
+		String modelMake = jsonData.get("vehicleMake").textValue();
+		String modelName = jsonData.get("vehicleModel").textValue();
+		Integer modelYear = Integer.parseInt(jsonData.get("vehicleYear").textValue()); 
+		String modelTrim = jsonData.get("vehicleTrim").textValue();
+		String plateType = jsonData.get("plateType")!= null ? jsonData.get("plateType").textValue():null; 
+		String carWeight = jsonData.get("weight") != null ? jsonData.get("weight").textValue():null; 
+		
+		
+		List<Object[]> list=saleTaxDao.getCitySpecificGenericTaxData(rName,cName,city, modelMake, modelName, modelYear,modelTrim,plateType);
+		List<Object[]> plateFees = saleTaxDao.getPlateTypeFees(rName, plateType);
+		List<Object[]> optionalFees = saleTaxDao.getOptionalFees(rName);
+		List<Object[]> countyOptionalFees = saleTaxDao.getOptionalFeesForCounty(rName, cName);
+		List<TaxObject> result=list.size()>0?new ArrayList<TaxObject>():null;
+		Map<String ,String> map= new HashMap<String, String>();
+		
+		
+		double totalRegFees = 0;
+		double totalTitleFees = 0;
+		double weightCheck = 0;
+		
+		for (Object[] objects : list) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			if(tax.getType().equals("TT") && tax.getUnit().equals("$"))
+				totalTitleFees = totalTitleFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			result.add(tax);
+			
+			weightCheck = Double.valueOf(objects[5].toString());
+		}
+		
+		for (Object[] objects : plateFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + Double.valueOf(tax.getValue());
+			result.add(tax);
+		}
+		
+		for (Object[] objects : optionalFees) {
+			
+				TaxObject tax = new TaxObject();
+				tax.setName(objects[0].toString());
+				tax.setValue(objects[1].toString());
+				tax.setUnit(objects[2].toString());
+				tax.setUrl(objects[3].toString());
+				tax.setType(objects[4].toString());
+				tax.setDescription(objects[5] != null ?objects[5].toString():"");
+				tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+				
+				if("Motor carrier fee".equals(objects[0].toString()) ) { //for Utah optional fees
+					if(weightCheck > 12000)
+						result.add(tax);
+				}else
+					result.add(tax);
+		}
+		
+		for (Object[] objects : countyOptionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			
+			result.add(tax);
+		}
+		
+		TaxObject tax = new TaxObject();
+		tax.setName("Total Title Fees");
+		tax.setValue(String.valueOf(totalTitleFees));
+		tax.setUnit("$");
+		tax.setType("TTF");
+		result.add(tax);
+		
+		tax = new TaxObject();
+		tax.setName("Total Registration Fees");
+		tax.setValue(String.valueOf(totalRegFees));
+		tax.setUnit("$");
+		tax.setType("TREG");
+		result.add(tax);
+		
+		return result;
+	}
+
+	@Override
+	public List<TaxObject> getAddressGenericTaxData(ObjectNode jsonData) {
+	/*	String plus4=jsonData.get("plus4").textValue();
+		String zip=jsonData.get("zip").textValue();*/
+		String rName=jsonData.get("state").textValue();
+		String cName=jsonData.get("county").textValue();
+		String city= jsonData.get("city")!= null ? jsonData.get("city").textValue():""; 
+		Integer modelYear = Integer.parseInt(jsonData.get("vehicleYear").textValue()); 
+		Integer modelMonth= jsonData.get("month")!= null ? Integer.parseInt(jsonData.get("month").textValue()):null; 
+		String plateType = jsonData.get("plateType")!= null ? jsonData.get("plateType").textValue():null; 
+		StringBuilder date = new StringBuilder();
+		date.append(modelYear).append("-").append(modelMonth).append("-").append("01");
+		/*String modelMake = jsonData.get("vehicleMake").textValue();
+		String modelName = jsonData.get("vehicleModel").textValue();
+		String modelTrim = jsonData.get("vehicleTrim")!= null ? jsonData.get("vehicleTrim").textValue():null;
+		String carWeight = jsonData.get("weight") != null ? jsonData.get("weight").textValue():null; 
+		*/
+		
+		List<Object[]> list=saleTaxDao.getTaxandFees(rName,cName,city,modelYear,date.toString());
+		List<Object[]> plateFees = saleTaxDao.getPlateTypeFees(rName, plateType);
+		List<Object[]> optionalFees = saleTaxDao.getOptionalFees(rName);
+		List<Object[]> countyOptionalFees = saleTaxDao.getOptionalFeesForCounty(rName, cName);
+		List<TaxObject> result=list.size()>0?new ArrayList<TaxObject>():null;
+		Map<String ,String> map= new HashMap<String, String>();
+		
+		
+		double totalRegFees = 0;
+		double totalTitleFees = 0;
+		
+		for (Object[] objects : list) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[1].toString());
+			tax.setValue(objects[2].toString());
+			tax.setUnit(objects[3].toString());
+			tax.setUrl(objects[4].toString());
+			tax.setType(objects[5].toString());
+			
+			if(tax.getType().equals("F") && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			
+			if(tax.getType().equals("TT") && tax.getUnit().equals("$"))
+				totalTitleFees = totalTitleFees + (!tax.getValue().equals("-1.0") ? Double.valueOf(tax.getValue()) : 0.0);
+			
+			result.add(tax);
+		}
+		
+		for (Object[] objects : plateFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			
+			if((tax.getType().equals("F") || tax.getType().equals("PF")) && tax.getUnit().equals("$"))
+				totalRegFees = totalRegFees + Double.valueOf(tax.getValue());
+			result.add(tax);
+		}
+		
+		for (Object[] objects : optionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			
+			result.add(tax);
+		}
+		
+		for (Object[] objects : countyOptionalFees) {
+			TaxObject tax = new TaxObject();
+			tax.setName(objects[0].toString());
+			tax.setValue(objects[1].toString());
+			tax.setUnit(objects[2].toString());
+			tax.setUrl(objects[3].toString());
+			tax.setType(objects[4].toString());
+			tax.setDescription(objects[5] != null ?objects[5].toString():"");
+			tax.setRangeValue(objects[6] != null ?objects[6].toString():"");
+			
+			result.add(tax);
+		}
+		
+		TaxObject tax = new TaxObject();
+		tax.setName("Total Registration Fees");
+		tax.setValue(String.valueOf(totalRegFees));
+		tax.setUnit("$");
+		tax.setType("TREG");
+		result.add(tax);
+		
+		tax = new TaxObject();
+		tax.setName("Total Title Fees");
+		tax.setValue(String.valueOf(totalTitleFees));
+		tax.setUnit("$");
+		tax.setType("TTF");
+		result.add(tax);
+		
+		return result;
+	}
+
+}

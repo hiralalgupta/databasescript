@@ -1,0 +1,8 @@
+package com.ccc.service;
+
+import java.util.List;
+import java.util.Map;
+
+public interface SaleTaxService {
+	List<Map<String ,String>> getAllSaleTax(double totalAmount,Integer plus4,Integer zip,String rName,String cName,String modelMake,String modelName,Integer modelYear); 
+}

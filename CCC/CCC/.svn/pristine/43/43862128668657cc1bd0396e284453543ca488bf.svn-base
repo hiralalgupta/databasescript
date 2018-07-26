@@ -1,0 +1,3 @@
+angular.module('myapp', [
+  'myapp.controllers', 'ngAnimate'
+]);

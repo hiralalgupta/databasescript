@@ -1,0 +1,129 @@
+var app = angular.module('myapp');
+
+/*app.run(function ($http) {
+	  // Sends this header with any AJAX request
+	  $http.defaults.headers.common['Access-Control-Allow-Origin'] = '*';
+	  // Send this header only in post requests. Specifies you are sending a JSON object
+	  $http.defaults.headers.post['dataType'] = 'json'
+	});
+*/
+
+app.controller('TaxCalculatorController', ['$rootScope','$scope','$timeout','RuleService','$compile',"$window","$filter",function($rootScope,$scope, $timeout, RuleService,$compile,$window,$filter) {
+    var self = this;
+    self.clientInfo=[];
+    self.ruleInfo=[];
+    self.tabId = '';
+    $scope.formData={};
+    self.controlMapping=[];
+    self.controlFirstCompFilteredObj="";
+    self.controlSecondCompFilteredObj="";
+    self.ruleFields="";
+    self.operatorList="";
+    self.secondaryClientSynIds ="";
+    self.secondaryClientSynIdsStatus=[];
+    self.saveMessage = "";
+    
+    self.stateData = "";
+    self.countiesData = "";
+    
+ 
+    $scope.fetchCounties = function() {
+    	self.countiesData = JSON.parse($scope.formData.stateData).counties;
+        
+    };
+
+    $scope.defaultInfoForClient = function() {
+	        RuleService.fetchAddressInfo()
+		        .then(
+		        function(data) {
+		        	self.stateData = data.obj;
+		        },
+		        function(errResponse){
+		            console.error('Error while fetching Users');
+		        }
+	        );
+        
+    };
+    
+    $scope.setRuleInfo = function(data){
+    	self.ruleInfo= data.obj;
+        $scope.formData.RULE_NAME = self.ruleInfo[0].ruleType;
+        $scope.formData.RTID = self.ruleInfo[0].rtId;
+        $scope.selectedRule = self.ruleInfo[0].rtId;
+    }
+    
+    $scope.tabChanged = function(newValue){
+    	$scope.tabId = newValue;
+    }
+    
+    $scope.$watch('tabId', function (newValue, oldValue) {
+    	if(newValue != undefined){
+    	 $scope.formData.RULE_NAME = newValue.ruleType;
+    	 $scope.formData.RTID = newValue.rtId;
+    	}
+      });
+    
+    $scope.submit = function() {
+    	
+    	$scope.formData.state = JSON.parse($scope.formData.stateData).name;
+    	$scope.formData.county = JSON.parse($scope.formData.countyData).name;
+    	RuleService.submit($scope.formData)
+        .then(
+	        function(data) {
+	        	resultData = data.obj;
+	        	$scope.SaleTaxComponent = resultData[0].SALES_TAX;
+	        	$scope.LocationRate = resultData[0].LOCATION_RATE;
+	        	$scope.RTA = resultData[0].RTA;
+	        	$scope.TitleFeesComponent = resultData[0].TITLE_FEES;
+	        	$scope.RegFessComponent = resultData[0].REGISTRATION_FEES;
+	        	$scope.VehicleType = resultData[0].VEHICLE_FEES;
+	        	$scope.WeightFee = resultData[0].WEIGHT_FEES;
+	        	$scope.PlateTypeFee = resultData[0].PLATETYPE_FEES;
+	        	$scope.VINFee = resultData[0].VEHICLEIDENTIFICATIONNUMBER;
+	        	$scope.SalesTax = parseFloat($scope.SaleTaxComponent)+parseFloat($scope.LocationRate)+parseFloat($scope.RTA);
+	        	$scope.TitleFees = $scope.TitleFeesComponent;
+	        	$scope.RegFess = parseFloat($scope.RegFessComponent)+parseFloat($scope.VehicleType)+parseFloat($scope.WeightFee)+parseFloat($scope.PlateTypeFee)+parseFloat($scope.VINFee);
+	        },
+	        function(errResponse){
+	            console.error('Error while fetching Users');
+	        }
+	    );
+    };
+    
+    $scope.fetchLocationInfo = function() {
+    	
+    	var countyId = JSON.parse($scope.formData.countyData).countyId;
+    	RuleService.fetchLocationInfo(countyId).then(
+    	function (data){
+    		 self.controlMapping=data.obj;
+    	},function(errResponse){
+    		console.error('Error while fetching ControlMappings');
+    	}		
+    	);
+    };
+    
+    
+}]);
+
+
+
+app.factory('Excel',function($window){
+    var uri='data:application/vnd.ms-excel;base64,',
+        template='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>{table}</table></body></html>',
+        base64=function(s){return $window.btoa(unescape(encodeURIComponent(s)));},
+        format=function(s,c){return s.replace(/{(\w+)}/g,function(m,p){return c[p];})};
+    return {
+        tableToExcel:function(tableId,worksheetName){
+            var table=$(tableId),
+                ctx={worksheet:worksheetName,table:table.html()},
+                href=uri+base64(format(template,ctx));
+            return href;
+        }
+    };
+})
+.controller('dataExportCtrl',function(Excel,$timeout,$scope){
+  $scope.exportToExcel=function(tableId){ // ex: '#my-table'
+        var exportHref=Excel.tableToExcel(tableId,'Searched Rule Data');
+        $timeout(function(){location.href=exportHref;},100); // trigger download
+    }
+});

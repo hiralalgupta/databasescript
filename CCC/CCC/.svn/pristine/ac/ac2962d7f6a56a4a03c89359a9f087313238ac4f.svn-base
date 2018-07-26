@@ -1,0 +1,41 @@
+package com.ccc.service.impl;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ccc.dao.SaleTaxDao;
+import com.ccc.service.SaleTaxService;
+@Transactional(readOnly=true)
+@Service
+public class SaleTaxServiceImpl implements SaleTaxService {
+
+	@Autowired
+	private SaleTaxDao saleTaxDao;
+	
+	@Override
+	public List<Map<String ,String>> getAllSaleTax(double totalAmount,Integer plus4,Integer zip,String rName,String cName) {
+		List<Object[]> list=saleTaxDao.getSaleTax(plus4,zip,rName,cName);
+		List<Map<String ,String>> result=list.size()>0?new ArrayList<Map<String,String>>():null;
+		for (Object[] objects : list) {
+			Map<String ,String> map= new HashMap<String, String>();
+			map.put("LOCATION_RATE", objects[0].toString());
+			map.put("RTA", objects[1].toString());
+			map.put("SALES_TAX", objects[2].toString());
+			map.put("REGISTRATION_FEES", objects[3].toString());
+			map.put("VEHICLE_FEES", objects[4].toString());
+			map.put("TITLE_FEES", objects[5].toString());
+			map.put("WEIGHT_FEES", objects[6].toString());
+			map.put("PLATETYPE_FEES", objects[7].toString());
+			map.put("VEHICLEIDENTIFICATIONNUMBER", objects[8].toString());
+			result.add(map);
+		}
+		return result;
+	}
+
+}

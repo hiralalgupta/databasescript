@@ -1,0 +1,8 @@
+jdbc.driverClassName = com.mysql.jdbc.Driver
+jdbc.url =jdbc:mysql://10.120.50.200:3306/${db.name}?zeroDateTimeBehavior=convertToNull&amp;amp;autoReconnect=true
+jdbc.username =root
+jdbc.password = admin@123
+hibernate.dialect = org.hibernate.dialect.MySQL5InnoDBDialect
+hibernate.show_sql = true
+hibernate.format_sql = true
+

@@ -1,0 +1,46 @@
+package com.ccc.jsonview;
+
+import java.util.List;
+
+import org.springframework.http.HttpStatus;
+
+import com.ccc.model.TaxObject;
+import com.ccc.webapp.util.ErrorResponse;
+import com.fasterxml.jackson.annotation.JsonView;
+
+public class DataResponse {
+	
+	@JsonView(Views.Public.class)
+	List<TaxObject> taxObj;
+	
+	@JsonView(Views.Public.class)
+	ErrorResponse errorResponse;
+	
+	@JsonView(Views.Public.class)
+	HttpStatus httpStatus;
+
+	public ErrorResponse getErrorResponse() {
+		return errorResponse;
+	}
+
+	public void setErrorResponse(ErrorResponse errorResponse) {
+		this.errorResponse = errorResponse;
+	}
+
+	public List<TaxObject> getTaxObj() {
+		return taxObj;
+	}
+
+	public void setTaxObj(List<TaxObject> taxObj) {
+		this.taxObj = taxObj;
+	}
+
+	public HttpStatus getHttpStatus() {
+		return httpStatus;
+	}
+
+	public void setHttpStatus(HttpStatus httpStatus) {
+		this.httpStatus = httpStatus;
+	}
+	
+}
