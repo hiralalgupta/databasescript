@@ -1,0 +1,18 @@
+Rel 1.0.1.87 notes 
+
+function:  STATUS_ICON.fnc  
+           ROLE_ICON.fnc
+           BUILD_IWS_URL.fnc
+package:   IWS_APP_UTILS.pkb
+procedure: UPDATE_POP_CASEHISTORYSUM
+           LOG_APEX_ACTION
+trigger:   PARALLELCASESTATUS_UPD_TGR.trg
+
+alter table CASEHISTORYSUM
+add  (pop_userid number,
+      pop_roleid number,
+      pop_START_ON	TIMESTAMP(4) WITH TIME ZONE,	
+      pop_COMPLETE_ON	TIMESTAMP(4) WITH TIME ZONE,	
+      pop_ASSIGNMENT_START_ON TIMESTAMP (4) WITH TIME ZONE,
+      pop_ASSIGNMENT_COMPLETE_ON  TIMESTAMP(4) WITH TIME ZONE
+      pop_ISCOMPLETE varchar2(1))

@@ -1,0 +1,440 @@
+--------------------------------------------------------
+--  DDL for Procedure UPDATE_CASEHISTORYSUM
+--------------------------------------------------------
+set define off;
+
+  CREATE OR REPLACE PROCEDURE "SNX_IWS2"."UPDATE_CASEHISTORYSUM" 
+  -- Program name - UPDATE_CASEHISTORYSUM
+  -- Created 5-1-2012 to updated existing and/or create new CASEHISTORYSUM entries.
+  -- Update previous CASEHISTORYSUM with closeout info and populate metrics
+  -- Insert New CASEHISTORYSUM with startup
+  -- Update History
+  -- 5-3-2012 R Benzell - optionally accept 'date' to facilitate old CASEHISTORY migraton  
+  --                      If no entries in CASEHISTORYSUM, create initial Stage record  
+  -- 5-8-2012 R Benzell - capture first and last created/updated_on for each record. (Need to validate functionality)
+    
+      (
+       P_CASEID IN NUMBER,
+       P_PREV_STAGEID IN NUMBER,
+       P_PREV_USERID IN NUMBER,
+       P_NEW_STAGEID IN NUMBER,
+       P_NEW_USERID IN NUMBER,
+       P_USERID IN NUMBER,  -- id initiating the change
+       P_DATE IN TIMESTAMP WITH TIME ZONE default null   
+      )
+  
+       IS
+    
+  --v_last_chid number;
+   I number default 1;
+   v_now TIMESTAMP(4) WITH TIME ZONE;
+   v_app_msg varchar2(4000);
+   v_CHANGE_FLAG varchar2(1);
+   v_Prev_Stage_chid number;
+   v_Prev_Assign_chid number;
+   --PREV_STAGESUM  CASEHISTORYSUM%ROWTYPE;
+   PREV_STAGESUM  CASEHISTORYSUM%ROWTYPE;
+   PREV_ASSIGNSUM CASEHISTORYSUM%ROWTYPE;
+   NEW_STAGESUM   CASEHISTORYSUM%ROWTYPE;
+   NEW_ASSIGNSUM  CASEHISTORYSUM%ROWTYPE;
+  
+ 
+ 
+  BEGIN
+             
+
+  --- make note of this momement so all actions can have identical timestamps   
+     IF P_DATE IS NULL
+       then v_now := systimestamp;
+       else v_now := P_DATE;
+     END IF;
+ 
+  -- v_app_msg :=  v_app_msg  || ' case=' || P_CASEID ||
+  --     ' prvstg=' || P_PREV_STAGEID ||
+  --     ' prvusr=' || P_PREV_USERID  ||
+  --     ' newstg=' || P_NEW_STAGEID  ||
+  --     ' newusr=' || P_NEW_USERID  ||
+  --     ' usr=' ||  P_USERID || '<br>';
+
+
+---------------------------
+--- Determine previous Stage Change History entry
+   select max(chid) into v_Prev_stage_chid
+   from CASEHISTORYSUM
+   WHERE caseid = P_CASEID AND STAGE_CHG_FLAG = 'Y';
+  --v_app_msg :=  v_app_msg  || ' StgCHID=' || v_Prev_STAGE_CHID;
+
+--- If no Initial Stage Entry, create on.  Happens upon ingestiong and conversion with RELOAD_CASEHISTORYSUM
+  If  v_Prev_STAGE_CHID IS NULL THEN
+      NEW_STAGESUM.CASEID   := P_CASEID;
+      NEW_STAGESUM.STAGE_CHG_FLAG  := 'Y';
+      NEW_STAGESUM.UPDATED_USERID := P_USERID ;
+      NEW_STAGESUM.CREATED_USERID := P_USERID ;
+      NEW_STAGESUM.STAGESTARTTIMESTAMP := v_Now;
+      NEW_STAGESUM.CREATED_TIMESTAMP := v_Now;
+      NEW_STAGESUM.UPDATED_TIMESTAMP := v_Now;
+      NEW_STAGESUM.STAGEID := P_NEW_STAGEID;
+      INSERT into CASEHISTORYSUM values NEW_STAGESUM;
+
+      COMMIT;
+      NEW_STAGESUM := NULL;
+
+      select max(chid) into v_Prev_stage_chid
+      from CASEHISTORYSUM
+      WHERE caseid = P_CASEID AND STAGE_CHG_FLAG = 'Y';
+  END IF;
+
+
+ --- Determine previous Assign Change History entry
+   select max(chid) into v_Prev_Assign_chid
+   from CASEHISTORYSUM
+   WHERE caseid = P_CASEID AND ASSIGN_CHG_FLAG = 'Y';
+  --v_app_msg :=  v_app_msg  || ' AsnCHID=' || v_Prev_ASSIGN_CHID;
+
+
+--------------------------
+-- Retrieve Save the previous STAGE history record for comparisons (if exists)
+  IF v_Prev_stage_chid IS NOT NULL THEN
+   SELECT * INTO PREV_STAGESUM  FROM CASEHISTORYSUM
+     WHERE CHID = v_Prev_stage_chid;
+  END IF;
+
+-- Save the previous ASSIGN history record for comparisons (if exists)
+  IF v_Prev_ASSIGN_chid IS NOT NULL THEN
+   SELECT * INTO PREV_ASSIGNSUM  FROM CASEHISTORYSUM
+     WHERE CHID = v_Prev_ASSIGN_chid;
+  END IF;
+
+
+--- COMMON INITS FOR ALL
+--- Set common info for new entry
+    NEW_STAGESUM.CASEID   := P_CASEID;
+    --NEW_STAGESUM.STAGE_CHG_FLAG  := 'Y';
+    NEW_STAGESUM.UPDATED_USERID := P_USERID ;
+    NEW_STAGESUM.CREATED_USERID := P_USERID ;
+    NEW_STAGESUM.CREATED_TIMESTAMP := v_Now;
+    NEW_STAGESUM.UPDATED_TIMESTAMP := v_Now;
+    NEW_STAGESUM.STAGEID := P_NEW_STAGEID;
+    --NEW_STAGESUM.USERID := P_NEW_USERID;
+
+
+    NEW_ASSIGNSUM.CASEID   := P_CASEID;
+   -- NEW_ASSIGNSUM.STAGE_CHG_FLAG  := 'Y';
+    NEW_ASSIGNSUM.UPDATED_USERID := P_USERID ;
+    NEW_ASSIGNSUM.CREATED_USERID := P_USERID ;
+    NEW_ASSIGNSUM.CREATED_TIMESTAMP := v_Now;
+    NEW_ASSIGNSUM.UPDATED_TIMESTAMP := v_Now;
+    NEW_ASSIGNSUM.STAGEID := P_NEW_STAGEID;
+    NEW_ASSIGNSUM.USERID := P_NEW_USERID;
+
+
+--- STAGE CHANGE
+--- Did the STAGE change to a new Assigned Value?  
+ IF P_PREV_STAGEID <> P_NEW_STAGEID AND  P_NEW_STAGEID IS NOT NULL THEN
+   -- record a StageCompletion timestamp
+      --v_app_msg :=  v_app_msg  || ' Stage Change ';
+      v_CHANGE_FLAG := 'Y';
+      PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP := v_now;
+
+  --- CREATES
+  --- Tally DP created work done for last STAGE period. Ignore userid
+   SELECT COUNT(*) into PREV_STAGESUM.DP_CREATED_CNT
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+     --v_app_msg :=  v_app_msg  || ' CrtDP=' || PREV_STAGESUM.DP_CREATED_CNT;
+ 
+
+   --- Tally CODES created work done for last STAGE period.  Ignore userid
+   SELECT COUNT(*) into PREV_STAGESUM.CODE_CREATED_CNT
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+  
+
+
+  --- UPDATES
+  --- Tally DP created work done for last STAGE period. Ignore userid
+   SELECT COUNT(*) into PREV_STAGESUM.DP_UPDATED_CNT
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+     --v_app_msg :=  v_app_msg  || ' UpdDP=' || PREV_STAGESUM.DP_CREATED_CNT;
+ 
+
+   --- Tally CODES created work done for last STAGE period.  Ignore userid
+   SELECT COUNT(*) into PREV_STAGESUM.CODE_UPDATED_CNT
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+      --v_app_msg :=  v_app_msg  || ' UpdCD=' || PREV_STAGESUM.DP_CREATED_CNT;
+   
+
+   --- Tally PAGES created work done for last STAGE period.  Ignore userid
+   SELECT COUNT(*) into PREV_STAGESUM.PAGE_UPDATED_CNT
+      FROM PAGES WHERE CASEID = P_CASEID  --AND ISCOMPLETED = 'Y'
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+      --v_app_msg :=  v_app_msg  || ' UpdPG=' || PREV_STAGESUM.PAGE_CREATED_CNT;
+
+
+
+   ------- STAGE CREATE Timestamp Boundaries
+   --- DP CREATE TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.DP_FIRST_CREATED,PREV_STAGESUM.DP_LAST_CREATED
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   --- CODES CREATE  TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.CODE_FIRST_CREATED,PREV_STAGESUM.CODE_LAST_CREATED
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   --- PAGES CREATE  TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.PAGE_FIRST_CREATED,PREV_STAGESUM.PAGE_LAST_CREATED
+      FROM PAGES  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   ------- STAGE UPDATE Timestamp Boundaries
+   --- DP UPDATE TimeStamp Boundaries
+      SELECT  MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into PREV_STAGESUM.DP_FIRST_UPDATED,PREV_STAGESUM.DP_LAST_UPDATED
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   --- CODES UPDATE  TimeStamp Boundaries
+      SELECT  MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into PREV_STAGESUM.CODE_FIRST_UPDATED,PREV_STAGESUM.CODE_LAST_UPDATED
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   --- PAGES UPDATE  TimeStamp Boundaries
+      SELECT   MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into  PREV_STAGESUM.PAGE_FIRST_UPDATED,PREV_STAGESUM.PAGE_LAST_UPDATED
+      FROM PAGES  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_STAGESUM.STAGESTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_STAGESUM.STAGECOMPLETIONTIMESTAMP;
+
+
+   -- begin new noting new Stage Info
+     NEW_STAGESUM.STAGE_CHG_FLAG  := 'Y';
+     NEW_STAGESUM.STAGESTARTTIMESTAMP := v_now;
+     NEW_STAGESUM.UPDATED_USERID := P_USERID ;
+     NEW_STAGESUM.STAGEDBY := P_USERID ;
+ END IF;
+
+
+--- ASSIGNEE CHANGE
+--- Did the ASSIGNEE change, included becoming unassinged?  
+--- If the Stage changed, force an assignee change no matter what
+--- to provide for consistency in reporting***/
+IF P_PREV_USERID <> P_NEW_USERID OR  P_PREV_USERID IS NULL OR NEW_STAGESUM.STAGE_CHG_FLAG  = 'Y' THEN   
+-- IF P_PREV_USERID <> P_NEW_USERID THEN  
+     --  record a Assignment completion Timestamp
+     --v_app_msg :=  v_app_msg  || ' Assignee Change ';
+     v_CHANGE_FLAG := 'Y';
+     PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP := v_now;
+
+  --- creates ---
+   --- Tally DP created work done for last ASSIGN period
+   SELECT COUNT(*) into PREV_ASSIGNSUM.DP_CREATED_CNT
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       --AND CREATED_USERID    = PREV_ASSIGNSUM.USERID  -- Disable until IWS-388 & IWS-392 are complete
+       AND CREATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP;
+     --v_app_msg :=  v_app_msg  || ' CrtDP=' || PREV_ASSIGNSUM.DP_CREATED_CNT;
+ 
+
+   --- Tally CODES created work done for last ASSIGN period
+   SELECT COUNT(*) into PREV_ASSIGNSUM.CODE_CREATED_CNT
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       --AND CREATED_USERID    = PREV_ASSIGNSUM.USERID   -- Disable until IWS-388 & IWS-392 are complete
+       AND CREATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP;
+      --v_app_msg :=  v_app_msg  || ' CrtCD=' || PREV_ASSIGNSUM.CODE_CREATED_CNT;
+
+  --- updates ---
+   --- Tally DP Updated work done for last ASSIGN period
+   SELECT COUNT(*) into PREV_ASSIGNSUM.DP_UPDATED_CNT
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       --AND UPDATED_USERID    = PREV_ASSIGNSUM.USERID  -- Disable until IWS-388 & IWS-392 are complete
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP;
+     --v_app_msg :=  v_app_msg  || ' UpdDP=' || PREV_ASSIGNSUM.DP_UPDATED_CNT;
+ 
+
+   --- Tally CODES Updated work done for last ASSIGN period
+   SELECT COUNT(*) into PREV_ASSIGNSUM.CODE_UPDATED_CNT
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       --AND UPDATED_USERID    = PREV_ASSIGNSUM.USERID   -- Disable until IWS-388 & IWS-392 are complete
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP;
+      --v_app_msg :=  v_app_msg  || ' UpdCD=' || PREV_ASSIGNSUM.CODE_UPDATED_CNT;
+
+
+   --- Tally PAGES created work done for last ASSIGN period
+   SELECT COUNT(*) into PREV_ASSIGNSUM.PAGE_UPDATED_CNT
+      FROM PAGES WHERE CASEID = P_CASEID --AND ISCOMPLETED = 'Y'
+       --AND UPDATED_USERID = PREV_ASSIGNSUM.USERID  -- Disable until IWS-388 & IWS-392 are complete
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTCOMPLETIONTIMESTAMP;
+     --v_app_msg :=  v_app_msg  || ' UpdPG=' || PREV_ASSIGNSUM.PAGE_UPDATED_CNT;
+  
+
+   ------- ASSIGN CREATE Timestamp Boundaries
+   --- DP CREATE TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.DP_FIRST_CREATED,PREV_STAGESUM.DP_LAST_CREATED
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+   --- CODES CREATE TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.CODE_FIRST_CREATED,PREV_STAGESUM.CODE_LAST_CREATED
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+   --- PAGES CREATE TimeStamp Boundaries
+      SELECT MIN(CREATED_TIMESTAMP), MAX(CREATED_TIMESTAMP)
+         into PREV_STAGESUM.PAGE_FIRST_CREATED,PREV_STAGESUM.PAGE_LAST_CREATED
+      FROM PAGES  WHERE CASEID = P_CASEID
+       AND CREATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND CREATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+   ------- ASSIGN UPDATE Timestamp Boundaries
+   --- DP UPDATE TimeStamp Boundaries
+      SELECT  MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into PREV_STAGESUM.DP_FIRST_UPDATED,PREV_STAGESUM.DP_LAST_UPDATED
+      FROM DPENTRYPAGES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+   --- CODES  UPDATE TimeStamp Boundaries
+      SELECT  MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into PREV_STAGESUM.CODE_FIRST_UPDATED,PREV_STAGESUM.CODE_LAST_UPDATED
+      FROM DPENTRYCODES_VIEW  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+   --- PAGES  UPDATE TimeStamp Boundaries
+      SELECT  MIN(UPDATED_TIMESTAMP), MAX(UPDATED_TIMESTAMP)
+         into    PREV_STAGESUM.PAGE_FIRST_UPDATED,PREV_STAGESUM.PAGE_LAST_UPDATED
+      FROM PAGES  WHERE CASEID = P_CASEID
+       AND UPDATED_TIMESTAMP >= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP
+       AND UPDATED_TIMESTAMP <= PREV_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP;
+
+
+
+    -- begin new noting new Assignee Info
+     NEW_ASSIGNSUM.ASSIGN_CHG_FLAG  := 'Y';
+     NEW_ASSIGNSUM.ASSIGNMENTSTARTTIMESTAMP := v_now;
+     NEW_ASSIGNSUM.UPDATED_USERID := P_USERID ;
+     NEW_ASSIGNSUM.ASSIGNEDBY := P_USERID ;
+ END IF;
+
+
+  --- No changes - just a duplicate of hitting Save with same data
+  IF P_PREV_USERID = P_NEW_USERID
+    AND P_PREV_STAGEID = P_NEW_STAGEID
+   THEN
+     --  record that nothing has been changeda Assignment completion Timestamp
+     --v_app_msg :=  v_app_msg  || ' NO CHANGES IN STAGE OR ASSIGNEE ';
+     v_CHANGE_FLAG := 'N';
+         
+  END IF;
+
+
+
+
+ --- Update the Existing STAGE Record IF something was changed and previous record exists
+  IF v_CHANGE_FLAG = 'Y' and  NEW_STAGESUM.STAGE_CHG_FLAG  = 'Y'
+     and v_Prev_STAGE_CHID IS NOT NULL
+     THEN
+        UPDATE CASEHISTORYSUM  SET ROW = PREV_STAGESUM WHERE CHID = v_Prev_STAGE_CHID ;
+        COMMIT;
+  END IF;
+
+
+ --- Update the Existing ASSIGN Record IF something was changed and previous record exists
+  IF v_CHANGE_FLAG = 'Y' and  NEW_ASSIGNSUM.ASSIGN_CHG_FLAG  = 'Y'
+     and v_Prev_ASSIGN_CHID IS NOT NULL
+     THEN
+        UPDATE CASEHISTORYSUM  SET ROW = PREV_ASSIGNSUM WHERE CHID = v_Prev_ASSIGN_CHID;
+        COMMIT;
+  END IF;
+
+
+
+ --- CREATE NEW STAGE RECORD
+  IF  NEW_STAGESUM.STAGE_CHG_FLAG  = 'Y' and v_CHANGE_FLAG = 'Y' THEN
+    INSERT into CASEHISTORYSUM values NEW_STAGESUM;
+    COMMIT;
+  END IF;
+
+--- CREATE NEW ASSIGN RECORD
+  IF  NEW_ASSIGNSUM.ASSIGN_CHG_FLAG  = 'Y' and v_CHANGE_FLAG = 'Y' THEN
+    INSERT into CASEHISTORYSUM values NEW_ASSIGNSUM;
+    COMMIT;
+  END IF;
+
+
+
+    
+--- Update current CASES table if there is a change
+--IF v_CHANGE_FLAG = 'Y' THEN
+--  UPDATE CASES
+--  SET STAGEID = P_NEW_STAGEID,
+--     USERID  = P_NEW_USERID,
+--     UPDATED_TIMESTAMP = SYSTIMESTAMP,
+--     ASSIGNMENTTIMESTAMP = SYSTIMESTAMP,
+--     UPDATED_USERID = P_USERID,
+--     ASSIGNEDBY = P_USERID
+--  WHERE CASEID = P_CASEID;
+-- END IF;
+
+ COMMIT;
+ --apex_application.g_print_success_message :=  'OK ' || v_app_msg;
+
+
+---- enable for debugging
+   --      LOG_APEX_ACTION(
+  --         P_ACTIONID => 65,
+  --         P_OBJECTTYPE => 'UPDATE_CASEHISTORYSUM' ,
+  --         --P_RESULTS =>  v_app_msg,
+  --         P_ORIGINALVALUE =>  'pStg=' || P_PREV_STAGEID || ' | pUsr=' || P_PREV_USERID,
+  --         P_MODIFIEDVALUE =>  'nStg=' || P_NEW_STAGEID  || ' | nUsr=' || P_NEW_USERID  || ' >>> ' || v_app_msg,
+  --         P_USERID =>  P_USERID,
+  --         P_CASEID => P_CASEID);
+     
+             
+       EXCEPTION WHEN OTHERS THEN
+           BEGIN
+             LOG_APEX_ERROR();
+             apex_application.g_print_success_message :=  ' ERROR' || v_app_msg  ;
+           END;
+             
+       END;
+
+/
+

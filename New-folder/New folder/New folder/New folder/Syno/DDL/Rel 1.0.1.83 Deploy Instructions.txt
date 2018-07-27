@@ -1,0 +1,2536 @@
+--- DROPS (for clean-up and reruns)
+DROP TABLE JOB_STATS;
+DROP index   JOB_STATS_ACTDATE_NDX ;
+DROP TABLE CLIENT_STATS;
+DROP index   CLIENT_STATS_ACTDATE_NDX ;
+DROP index   CLIENT_STATS_CLIENTID_NDX ;
+DROP TABLE STAGE_STATS;
+DROP index   STAGE_STATS_CLIENTID_NDX ;
+DROP index   STAGE_STATS_CASEID_NDX ;
+DROP index   STAGE_STATS_STAGEID_NDX ;
+DROP index   STAGE_STATS_USERID_NDX ;
+DROP TABLE   CASE_STATS ;
+DROP index   CASE_STATS_CLIENTID_NDX ; 
+DROP index   CASE_STATS_CASEID_NDX ;
+DROP index   CASE_STATS_STAGEID_NDX ;
+DROP TABLE USER_STATS;
+DROP index   USER_STATS_ACTDATE_NDX ; 
+DROP index   USER_STATS_USERID_NDX ;
+DROP TABLE BATCH_STATS;
+DROP index   BATCH_STATS_ACTDATE_NDX ; 
+DROP index   BATCH_STATS_CLIENTID_NDX ;
+DROP index   BATCH_STATS_BATCHID_NDX ;
+DROP TABLE WORKDAY_CASE_STATS;	
+DROP index   WRKDY_CASE_STATS_ACTDATE_NDX ; 
+DROP index   WRKDY_CASE_STATS_CLIENTID_NDX ; 
+DROP index   WRKDY_CASE_STATS_CASEID_NDX ;
+DROP index   WRKDY_CASE_STATS_BATCHID_NDX ;
+DROP TABLE ERROR_LISTING ;
+DROP index   ERROR_LISTING_CLIENTID_NDX ; 
+DROP index   Error_Listing_Caseid_Ndx;
+DROP index   ERROR_LISTING_BATCHID_NDX ;
+
+=================================
+====== SNX_IWS_DW
+================================
+Assume SNX_IWS_DW Schema is created but unpopulated
+
+
+=================================
+======Connect as SNX_IWS2
+=== add DW schema to Apex
+================================
+
+
+https://172.28.21.7:7788/pls/apex/f?p=4550:10
+
+admin/xxxxx
+Manage Workspaces -> Manage Workspaces to Schema Assignments
+press the "Create" button
+Select "Existing" Schema -> next
+Press the selector to the right of  the "DataBase Schema" list (misleading appears grayed-out)
+choose "SNX_APEX_xxx" (where xxx is either QA or PROD, depending on deployment)
+Press Next
+Press the Schema Selector
+choose SNX_IWS_DW
+Press Next
+Press Add Schema
+SNX_IWS_DW should now additional appear in the Workspace/Schema list
+
+
+=================================
+======Connect as SNX_IWS2
+================================
+---- ******** Creates ********
+alter table  snx_iws2.CLIENTS  add ( FILE_TYPE  VARCHAR2(25));
+alter table  snx_iws2.CASES  add ( UPLOAD_METHOD  VARCHAR2(25),SOURCE_IP_ADDR VARCHAR2(25));
+alter table  snx_iws2.ROLES  add ( AUTH_TIER  NUMBER);
+
+UPDATE "SNX_IWS2"."ROLES" SET AUTH_TIER = '10' WHERE ROLENAME = 'MANAGER';
+UPDATE "SNX_IWS2"."ROLES" SET AUTH_TIER = '20' WHERE ROLENAME = 'ADMIN';
+UPDATE "SNX_IWS2"."ROLES" SET AUTH_TIER = '30' WHERE ROLENAME = 'SUPERADMIN';
+UPDATE "SNX_IWS2"."ROLES" SET AUTH_TIER = '0'  WHERE AUTH_TIER IS NULL;
+
+--grant select on SNX_IWS2.DPENTRYPAGES_VIEW to snx_iws_dw;
+--CREATE SYNONYM SNX_IWS_DW.DIM_DPENTRYPAGES_VIEW FOR SNX_IWS2.DPENTRYPAGES_VIEW;
+
+
+=================================
+===  Connect as SNX_IWS_DW
+=================================
+--- In SNX_IWS_DW
+CREATE TABLE SNX_IWS_DW.JOB_STATS  
+   (     ACTIVITY_DATE  TIMESTAMP (6), 
+         Table_Name Varchar2(50),
+         TABLE_TYPE VARCHAR2(15),
+         ROW_COUNT  NUMBER,
+         READ_COUNT NUMBER,
+         INSERT_COUNT NUMBER,
+         JOB_STARTED_ON  TIMESTAMP (6),
+         Job_Finished_On  Timestamp (6),
+         RUN_TIME number,
+         JOB_STATUS VARCHAR2(10),
+         JOB_MESSAGE VARCHAR2(200),
+         CREATED_ON TIMESTAMP (6),
+ 	     UPDATED_ON TIMESTAMP (6) 
+   ) NOLOGGING;
+create index  SNX_IWS_DW.JOB_STATS_ACTDATE_NDX on SNX_IWS_DW.JOB_STATS(ACTIVITY_DATE);
+grant select on  SNX_IWS_DW.JOB_STATS   to snx_iws2;
+
+ 
+
+--- In SNX_IWS_DW
+DROP TABLE SNX_IWS_DW.CLIENT_STATS;
+CREATE TABLE   SNX_IWS_DW.CLIENT_STATS  
+   (     CLIENTID  NUMBER, 
+         FILE_TYPE VARCHAR2(25),
+         ACTIVITY_DATE  TIMESTAMP (6), 
+         RECEIVED_FILE_COUNT  NUMBER, 
+         RECEIVED_PAGE_COUNT  NUMBER, 
+         INPROCESS_FILE_COUNT  NUMBER, 
+         INPROCESS_PAGE_COUNT  NUMBER,
+         PUBLISHED_FILE_COUNT  NUMBER, 
+         PUBLISHED_PAGE_COUNT  NUMBER, 
+         PUBLISHED_DATAPOINT_COUNT  NUMBER,
+         CREATED_ON TIMESTAMP (6),
+ 	     UPDATED_ON TIMESTAMP (6) 
+ 	        ) NOLOGGING ;
+create index  SNX_IWS_DW.CLIENT_STATS_ACTDATE_NDX on SNX_IWS_DW.CLIENT_STATS(ACTIVITY_DATE); 
+create index  SNX_IWS_DW.CLIENT_STATS_CLIENTID_NDX on SNX_IWS_DW.CLIENT_STATS(CLIENTID);
+grant select on  SNX_IWS_DW.CLIENT_STATS   to snx_iws2;
+ 
+
+
+DROP TABLE SNX_IWS_DW.STAGE_STATS;
+CREATE TABLE   SNX_IWS_DW.STAGE_STATS  	
+   (     CLIENTID  		NUMBER, 
+         BATCHID  		NUMBER,	
+         CASEID  		NUMBER, 	
+         FILE_TYPE      VARCHAR2(25),         
+         STAGEID  		NUMBER, 	
+         STATUS  		VARCHAR2(30), 	
+         USERID  		NUMBER, 	
+         STAGE_STARTED_ON  	        TIMESTAMP (6), 	
+         STAGE_FINISHED_ON  	        TIMESTAMP (6),
+         ASSIGNED_ON  	        TIMESTAMP (6), 	
+         WORK_BEGAN_ON  	TIMESTAMP (6),  	
+         WORK_FINISHED_ON  	TIMESTAMP (6), 
+         UNASSIGNED_TIME        NUMBER, 
+     	 QUEUE_TIME		NUMBER,
+         NET_TURN_AROUND_TIME   NUMBER, 
+         TURN_AROUND_TIME       NUMBER, 
+  	     PRODUCTIVE_TIME	NUMBER,
+         PAUSE_TIME		NUMBER,
+ 	     NONPRODUCTIVE_TIME	NUMBER,
+ 	     CREATED_ON TIMESTAMP (6),
+ 	     UPDATED_ON TIMESTAMP (6)
+     ) NOLOGGING;
+create index  SNX_IWS_DW.STAGE_STATS_CLIENTID_NDX on SNX_IWS_DW.STAGE_STATS(CLIENTID); 
+create index  SNX_IWS_DW.STAGE_STATS_CASEID_NDX on SNX_IWS_DW.STAGE_STATS(CASEID);
+create index  SNX_IWS_DW.STAGE_STATS_STAGEID_NDX on SNX_IWS_DW.STAGE_STATS(STAGEID);
+create index  SNX_IWS_DW.STAGE_STATS_USERID_NDX on SNX_IWS_DW.STAGE_STATS(USERID);grant select on  SNX_IWS_DW.BATCH_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.STAGE_STATS   to snx_iws2;
+
+
+
+comment on column STAGE_STATS.STAGE_STARTED_ON is 'when case was set to this stage';
+comment on column STAGE_STATS.ASSIGNED_ON is 'when case was assigned to a user for this stage';
+comment on column STAGE_STATS.WORK_BEGAN_ON is 'when user first opened this stage';
+comment on column STAGE_STATS.WORK_FINISHED_ON is 'when this stage is completed by user, or user stops working on this stage';
+comment on column STAGE_STATS.UNASSIGNED_TIME is 'Time (in minutes) no user was assigned to a case.';
+comment on column STAGE_STATS.QUEUE_TIME is 'Time (in minutes) user was assigned case but had not started work on it. WORK_BEGAN_ON -minus ASSIGNED_ON.  Increments even if user is not logged in.';
+comment on column STAGE_STATS.NET_TURN_AROUND_TIME is 'Time (in minutes) between User Started and Completed Work.  WORK_FINISHED_ON -minus WORK_BEGAN_ON (in minutes).  ';
+comment on column STAGE_STATS.TURN_AROUND_TIME is 'Time (in minutes) between Stage Start and Work Finishing.  =WORK_FINISHED_ON -minus STARTED_ON  ';
+comment on column STAGE_STATS.PRODUCTIVE_TIME is 'Time (in minutes) when assigned user was in IWS Case';
+comment on column STAGE_STATS.PAUSE_TIME is 'Time (in minutes) when assigned users were not in IWS Case (after they have first begun work';
+comment on column STAGE_STATS.NONPRODUCTIVE_TIME is 'Time (in minutes) PAUSE + UNASSIGNED + QUEUE Time';
+
+
+--- 
+
+
+DROP TABLE   CASE_STATS ;
+CREATE TABLE   SNX_IWS_DW.CASE_STATS  	
+   (     CLIENTID 	 	NUMBER, 	
+         CASEID  		NUMBER, 	
+         FILE_TYPE VARCHAR2(25),
+         CLIENT_FILENAME    	VARCHAR2(255), 	
+         TOTAL_PAGES  		NUMBER, 	
+         TOTAL_DP_COUNT  	NUMBER, 	
+         RX_DP_COUNT  		NUMBER, 	
+         NURSE_DP_COUNT 	NUMBER, 	
+         DR_DP_COUNT  		NUMBER, 	
+         OPPORTUNITY_COUNT  	NUMBER, 	
+         ERROR_COUNT  		NUMBER, 	
+         QUALITY_EFFICIENCY  	NUMBER, 	
+	 OMISSION_ERROR_COUNT	NUMBER,
+	 COMMISSION_ERROR_COUNT	NUMBER,
+	 MODIFICATION_ERROR_COUNT NUMBER,
+ 	 CRITICAL_ERROR_COUNT	NUMBER,
+	 MAJOR_ERROR_COUNT	NUMBER,
+	 MINOR_ERROR_COUNT	NUMBER,
+	 OBSERVATION_ERROR_COUNT	NUMBER,
+         RECEIVED_ON  		TIMESTAMP (6), 	
+         INGESTED_ON  		TIMESTAMP (6), 	
+         ASSIGNED_ON  		TIMESTAMP (6), 	
+       	 WORK_BEGAN_ON		TIMESTAMP(6),
+	 WORK_FINISHED_ON 	TIMESTAMP(6),	
+	 PUBLISHED_ON  		TIMESTAMP (6), 	
+         DOWNLOADED_ON  	TIMESTAMP (6), 	
+         DUE_ON  		TIMESTAMP (6), 	
+         UNASSIGNED_TIME         NUMBER, 
+  	 QUEUE_TIME		NUMBER,
+  	 PRODUCTIVE_TIME	NUMBER,
+         PAUSE_TIME		NUMBER,
+ 	 NONPRODUCTIVE_TIME	NUMBER,
+ 	 UPLOAD_TIME	        NUMBER,
+         INGESTION_TIME	        NUMBER,
+         CYCLE_TIME	        NUMBER,
+         NET_TURN_AROUND_TIME   NUMBER, 
+         TURN_AROUND_TIME       NUMBER, 
+         STAGEID  		NUMBER, 	
+         STATUS  		VARCHAR2(10),
+         CREATED_ON TIMESTAMP (6),
+ 	 UPDATED_ON TIMESTAMP (6) 	
+     ) NOLOGGING;
+
+create index  CASE_STATS_CLIENTID_NDX on CASE_STATS(CLIENTID); 
+create index  CASE_STATS_CASEID_NDX on CASE_STATS(CASEID);
+create index  CASE_STATS_STAGEID_NDX on CASE_STATS(STAGEID);
+grant select on  SNX_IWS_DW.CASE_STATS   to snx_iws2;
+
+	
+
+comment on column CASE_STATS.RECEIVED_ON is 'when the file is received by the sFTP or Synodex-Connect.';
+comment on column CASE_STATS.INGESTED_ON is 'when the file has been completely processed by the Ingestor.';
+comment on column CASE_STATS.ASSIGNED_ON is 'when the file is first assigned to a user for work.';
+comment on column CASE_STATS.WORK_BEGAN_ON is 'when first user opens case for initial stage ';
+comment on column CASE_STATS.WORK_FINISHED_ON is 'when last user stage is completed';
+comment on column CASE_STATS.PUBLISHED_ON is 'when the completed file is delivered to the sFTP/Synodex-Connect Portal';
+comment on column CASE_STATS.DOWNLOADED_ON is'when the user has pulled the file from the sFTP/Synodex-Connect Portal';
+comment on column CASE_STATS.DUE_ON is 'DateTime when this Case was Due to be Published for the client, based on SLA';
+comment on column CASE_STATS.UNASSIGNED_TIME is 'Total Time (in minutes) no users was assigned to a case that was in a IWS Work Stage.';
+comment on column CASE_STATS.QUEUE_TIME is 'Total Time (in minutes) users were assigned case but had not started work on it. Increments even if user is not logged in.';
+comment on column CASE_STATS.PRODUCTIVE_TIME is 'Total Time (in minutes) when assigned users were in IWS Case';
+comment on column CASE_STATS.PAUSE_TIME is 'Total Time (in minutes) when assigned users were not in IWS Case (after they have first begun work';
+comment on column CASE_STATS.NONPRODUCTIVE_TIME is 'Total Time (in minutes) PAUSE + UNASSIGNED + QUEUE Times for all IWS work stages';
+comment on column CASE_STATS.UPLOAD_TIME is 'Time (in minutes) from the user to upload the file via Synodex-Connect';
+comment on column CASE_STATS.INGESTION_TIME is 'Time (in minutes) for the IBR Ingestor to process and load all pages into UCM';
+comment on column CASE_STATS.CYCLE_TIME is 'Time (in minutes) from RECEIVED_ON to PUBLISHED_ON';
+comment on column CASE_STATS.NET_TURN_AROUND_TIME is 'Total Time (in minutes) of NET_TURN_AROUND_TIMEs for all IWS Work Stages.';
+comment on column CASE_STATS.TURN_AROUND_TIME is 'Total Time (in minutes) of TURN_AROUND_TIME for all IWS Work Stages.';
+comment on column CASE_STATS.STAGEID is 'Most Recent (final) StageID';
+comment on column CASE_STATS.STATUS is 'Most Recent (final) STATUS';
+
+
+
+DROP TABLE USER_STATS;
+CREATE TABLE SNX_IWS_DW.USER_STATS
+     (  USERID	NUMBER,
+	    ACTIVITY_DATE	TIMESTAMP(6),
+	    WORK_BEGAN_ON	TIMESTAMP(6),
+	    WORK_FINISHED_ON TIMESTAMP(6),
+        TURN_AROUND_TIME    NUMBER, 
+	    PRODUCTIVE_TIME  NUMBER,
+	    NONPRODUCTIVE_TIME  NUMBER,
+	    CREATED_ON TIMESTAMP (6),
+ 	    UPDATED_ON TIMESTAMP (6)
+     ) NOLOGGING;
+/
+create index  USER_STATS_ACTDATE_NDX on USER_STATS(ACTIVITY_DATE); 
+create index  USER_STATS_USERID_NDX on USER_STATS(USERID);
+grant select on  SNX_IWS_DW.USER_STATS   to snx_iws2;
+
+
+comment on table USER_STATS is 'Created as Summarization from STAGE_STATS for a particular Activity Date and User';
+
+comment on column USER_STATS.WORK_BEGAN_ON is 'when user first logins, or midnight if still logged in from previous day';
+comment on column USER_STATS.WORK_FINISHED_ON is 'when user last logs out, or midnight if still logged in at end of day';
+comment on column USER_STATS.TURN_AROUND_TIME is 'Time (in minutes) between user first logging in and then logging out.  WORK_FINISHED_ON -minus WORK_BEGAN_ON.';
+comment on column USER_STATS.NONPRODUCTIVE_TIME is 'Time (in minutes) when assigned user was NOT in IWS Case. (after they have first begun work';
+comment on column USER_STATS.PRODUCTIVE_TIME is 'Time (in minutes) when assigned user WAS in IWS Case';
+
+
+DROP TABLE BATCH_STATS;
+CREATE TABLE SNX_IWS_DW.BATCH_STATS
+     (  ACTIVITY_DATE	TIMESTAMP(6),
+        CLIENTID	NUMBER,
+        FILE_TYPE VARCHAR2(25),
+    	BATCHID		NUMBER,
+	    BATCH_PROCESSING_TIME	NUMBER,
+	    DUE_DATE	TIMESTAMP(6),
+	    SLA_COUNTDOWN_MINUTES	NUMBER,
+	    BATCH_AGE	NUMBER,
+	    BATCH_STATUS	VARCHAR2(10 BYTE),
+	 	CREATED_ON TIMESTAMP (6),
+ 	    UPDATED_ON TIMESTAMP (6)
+     ) NOLOGGING;
+/
+create index  BATCH_STATS_ACTDATE_NDX on BATCH_STATS(ACTIVITY_DATE); 
+create index  BATCH_STATS_CLIENTID_NDX on BATCH_STATS(CLIENTID);
+create index  BATCH_STATS_BATCHID_NDX on BATCH_STATS(BATCHID);
+grant select on  SNX_IWS_DW.BATCH_STATS  to snx_iws2;
+
+
+
+DROP TABLE WORKDAY_CASE_STATS;	
+CREATE TABLE SNX_IWS_DW.WORKDAY_CASE_STATS	
+      ( CLIENTID	NUMBER,
+    	BATCHID		NUMBER,
+	 	CASEID		NUMBER,
+	 	FILE_TYPE VARCHAR2(25),
+        TOTAL_PAGES  		NUMBER, 	
+        TOTAL_DP_COUNT  	NUMBER, 		 	
+		ACTIVITY_DATE	TIMESTAMP(6),
+		STAGE_AT_DAY_BEG	NUMBER,
+		STAGE_AT_DAY_END	NUMBER,
+		RECEIVED_FLAG		VARCHAR2(1),
+		COMPLETED_FLAG		VARCHAR2(1),
+		CANCELLED_NONBILL_FLAG	VARCHAR2(1),
+		CANCELLED_BILLABLE_FLAG	VARCHAR2(1),
+		CARRY_FORWARD_FLAG	VARCHAR2(1),
+	 	CREATED_ON TIMESTAMP (6),
+ 	    UPDATED_ON TIMESTAMP (6)
+     ) NOLOGGING;
+create index  WRKDY_CASE_STATS_ACTDATE_NDX on WORKDAY_CASE_STATS(ACTIVITY_DATE); 
+create index  WRKDY_CASE_STATS_CLIENTID_NDX on WORKDAY_CASE_STATS(CLIENTID); 
+create index  WRKDY_CASE_STATS_CASEID_NDX on WORKDAY_CASE_STATS(CASEID);
+create index  WRKDY_CASE_STATS_BATCHID_NDX on WORKDAY_CASE_STATS(BATCHID);
+grant select on  SNX_IWS_DW.WORKDAY_CASE_STATS   to snx_iws2;
+
+
+
+DROP TABLE ERROR_LISTING ;
+CREATE TABLE   SNX_IWS_DW.ERROR_LISTING  	
+   (     CLIENTID  NUMBER, 	
+         CASEID  NUMBER, 
+         ACTIVITY_DATE	TIMESTAMP(6),
+         FILE_TYPE VARCHAR2(25),	
+         DPENTRYID  NUMBER, 	
+         FIELD_NAME  VARCHAR2(100), 	
+         LOGID  NUMBER, 	
+         ORIGINAL_VALUE  VARCHAR2(2000), 	
+         MODIFIED_VALUE  VARCHAR2(2000), 	
+         ORIGINAL_USERID  NUMBER, 	
+         MODIFIED_USERID  NUMBER, 	
+         ORIGINAL_CREATED_ON  TIMESTAMP (6),
+         MODIFIED_ON  TIMESTAMP (6),
+         ORIGINAL_STAGEID  NUMBER, 	
+         MODIFIED_STAGEID  NUMBER,	
+		 OMISSION_ERROR_FLAG	VARCHAR2(1),
+		 COMMISSION_ERROR_FLAG	VARCHAR2(1),
+		 MODIFICATION_ERROR_FLAG	VARCHAR2(1),
+		 CODE_SCALE 	number,
+		 CRITICAL_ERROR_FLAG	VARCHAR2(1),
+		 MAJOR_ERROR_FLAG	VARCHAR2(1),
+		 MINOR_ERROR_FLAG	VARCHAR2(1),
+		 OBSERVATION_ERROR_FLAG	VARCHAR2(1),
+	 	 CREATED_ON TIMESTAMP (6),
+ 	     UPDATED_ON TIMESTAMP (6)
+    ) NOLOGGING;
+
+create index  ERROR_LISTING_CLIENTID_NDX on ERROR_LISTING(CLIENTID); 
+create index  ERROR_LISTING_CASEID_NDX on ERROR_LISTING(CASEID);
+create index  ERROR_LISTING_BATCHID_NDX on ERROR_LISTING(ORIGINAL_USERID);
+grant select on  SNX_IWS_DW.ERROR_LISTING  to snx_iws2;
+
+
+----* Key Views
+CREATE OR REPLACE VIEW SNX_IWS_DW."DIM_DPENTRYPAGES_VIEW" ("CASEID", "CATEGORY", "SUBCATEGORY", "CODENAME", "CODEDESC", "FINALPAGENUMBER", "SECTIONNUMBER", "DATADATE", "DPENTRYID", "HID", "SEQUENCE", "DATAFIELD1", "DATAFIELD1TYPE", "DATAFIELD1REF", "DATAFIELD1VALUE", "DATAFIELD2", "DATAFIELD2TYPE", "DATAFIELD2REF", "DATAFIELD2VALUE", "DATAFIELD3", "DATAFIELD3TYPE", "DATAFIELD3REF", "DATAFIELD3VALUE", "DATAFIELD4", "DATAFIELD4TYPE", "DATAFIELD4REF", "DATAFIELD4VALUE", "DATAFIELD5", "DATAFIELD5TYPE", "DATAFIELD5REF", "DATAFIELD5VALUE", "DATAFIELD6", "DATAFIELD6TYPE", "DATAFIELD6REF", "DATAFIELD6VALUE", "DATAFIELD7", "DATAFIELD7TYPE", "DATAFIELD7REF", "DATAFIELD7VALUE", "DATAFIELD8", "DATAFIELD8TYPE", "DATAFIELD8REF", "DATAFIELD8VALUE", "DATAFIELD9", "DATAFIELD9TYPE", "DATAFIELD9REF", "DATAFIELD9VALUE", "DATAFIELD10", "DATAFIELD10TYPE", "DATAFIELD10REF", "DATAFIELD10VALUE", "DATAFIELD11", "DATAFIELD11TYPE", "DATAFIELD11REF", "DATAFIELD11VALUE", "DATAFIELD12", "DATAFIELD12TYPE",
+  "DATAFIELD12REF", "DATAFIELD12VALUE", "ISCRITICAL", "CRITICALITY", "ISDELETED", "SUSPENDNOTE", "USERFEEDBACK", "CREATED_TIMESTAMP", "CREATED_USERID", "CREATED_STAGEID", "UPDATED_TIMESTAMP", "UPDATED_USERID", "UPDATED_STAGEID")
+AS
+  SELECT p.CASEID,
+    SUBSTR(code.PATH, instr(code.PATH, '/',          -1, 1) + 1, LENGTH(code.PATH) - instr(code.PATH, '/', -1, 1)) category,
+    SUBSTR(code.PATH, instr(code.PATH, '/',          -1, 2) + 1, instr(code.PATH, '/', -1, 1) - instr(code.PATH, '/', -1, 2) - 1) subcategory,
+    SUBSTR(code.PATH, 2, instr(code.PATH, '/', 1, 2) - instr(code.PATH, '/', 1, 1) - 1) codename,
+    code.CODEDESC,
+    p.FINALPAGENUMBER,
+    dpe.SECTIONNUMBER,
+    TRUNC(dpe.DATADATE),
+    dpe.DPENTRYID,
+    code.HID,
+    dpe.SEQUENCE,
+    code.DATAFIELD1,
+    code.DATAFIELD1TYPE,
+    code.DATAFIELD1REF,
+    dpe.DATAFIELD1VALUE,
+    code.DATAFIELD2,
+    code.DATAFIELD2TYPE,
+    code.DATAFIELD2REF,
+    dpe.DATAFIELD2VALUE,
+    code.DATAFIELD3,
+    code.DATAFIELD3TYPE,
+    code.DATAFIELD3REF,
+    dpe.DATAFIELD3VALUE,
+    code.DATAFIELD4,
+    code.DATAFIELD4TYPE,
+    code.DATAFIELD4REF,
+    dpe.DATAFIELD4VALUE,
+    code.DATAFIELD5,
+    code.DATAFIELD5TYPE,
+    code.DATAFIELD5REF,
+    dpe.DATAFIELD5VALUE,
+    code.DATAFIELD6,
+    code.DATAFIELD6TYPE,
+    code.DATAFIELD6REF,
+    dpe.DATAFIELD6VALUE,
+    code.DATAFIELD7,
+    code.DATAFIELD7TYPE,
+    code.DATAFIELD7REF,
+    dpe.DATAFIELD7VALUE,
+    code.DATAFIELD8,
+    code.DATAFIELD8TYPE,
+    code.DATAFIELD8REF,
+    dpe.DATAFIELD8VALUE,
+    code.DATAFIELD9,
+    code.DATAFIELD9TYPE,
+    code.DATAFIELD9REF,
+    dpe.DATAFIELD9VALUE,
+    code.DATAFIELD10,
+    code.DATAFIELD10TYPE,
+    code.DATAFIELD10REF,
+    dpe.DATAFIELD10VALUE,
+    code.DATAFIELD11,
+    code.DATAFIELD11TYPE,
+    code.DATAFIELD11REF,
+    dpe.DATAFIELD11VALUE,
+    code.DATAFIELD12,
+    code.DATAFIELD12TYPE,
+    code.DATAFIELD12REF,
+    dpe.DATAFIELD12VALUE,
+    dpe.ISCRITICAL,
+    dpe.CRITICALITY,
+    dpe.isDeleted,
+    dpe.SUSPENDNOTE,
+    dpe.USERFEEDBACK,
+    dpe.CREATED_TIMESTAMP ,
+    dpe.CREATED_USERID ,
+    dpe.CREATED_STAGEID ,
+    dpe.UPDATED_TIMESTAMP ,
+    dpe.UPDATED_USERID ,
+    dpe.UPDATED_STAGEID
+  FROM DIM_dpentries dpe,
+    DIM_pages p,
+    DIM_MEDHIERARCHY_LEAF_LEVEL_V code
+  WHERE dpe.PAGEID = p.PAGEID
+  AND dpe.HID      = code.HID
+  ORDER BY category,
+    subcategory,
+    codename,
+    dpe.datadate,
+    p.finalpagenumber,
+    dpe.sectionnumber;
+
+
+
+
+
+CREATE OR REPLACE  VIEW  SNX_IWS_DW."DIM_USER_HIERARCHY" ("USERID", "USERNAME", "SUPERVISORID", "FIRSTNAME", "LASTNAME", "MIDDLENAME", "SALUTATION", 
+"LOCATION", "EFFECTIVEDATE", "EXPIRATIONDATE",
+ "TEAMDESC", "TEAMMANAGERID", "DIVISIONID",  
+ "DIVISIONDESC", "DIVISIONMANAGERID",  
+ "HEADID", "HEADUSERID") AS 
+  select
+ 	 A."USERID" as "USERID",
+	 A."USERNAME" as "USERNAME",
+	 A."SUPERVISORID" as "SUPERVISORID",
+	 A."FIRSTNAME" as "FIRSTNAME",
+	 A."LASTNAME" as "LASTNAME",
+	 A."MIDDLENAME" as "MIDDLENAME",
+	 A."SALUTATION" as "SALUTATION",
+	 A."LOCATION" as "LOCATION" ,
+         A.EFFECTIVEDATE,
+         A.EXPIRATIONDATE,
+         B.TEAMDESC,
+         B.TEAMMANAGERID,
+         B.DIVISIONID,
+         C.DIVISIONDESC,
+         C.DIVISIONMANAGERID,
+         C.HEADID,
+         D.HEADUSERID
+ from	 DIM_USERS A,
+         DIM_TEAMS B,
+         DIM_DIVISIONS C,
+         DIM_HEAD D
+ WHERE   B.TEAMID = A.SUPERVISORID  (+) and
+         C.DIVISIONID = B.DIVISIONID (+) and
+         D.HEADID = C.HEADID (+);
+
+
+
+
+=================================
+===  Program updates
+=================================
+
+create or replace PROCEDURE           "POST_AUTH_PROCESS" 
+    -- Created 10-21-2011 R Benzell
+    -- Logs the action and creates a Session Entry
+    -- Also determines and records the Connection_Environment
+    -- Usually called from Post-Authentication Process in Apex Authetication setup
+    -- Update History
+    --  11-01-2011 R Benzell
+    -- Increased size of v_Match_Str variable to resolve errors of:
+    --      ORA-06502: PL/SQL: numeric or value error: character string buffer too small
+    --  added full CGI info capture if error
+    -- 8-18-2012 R Benzell support dual IWS versions based on UAT role
+    -- 1-24-2012 R Benzell - Capture USERID into Auditlog
+    
+    /** unit test:
+      begin
+          POST_AUTH_PROCESS();
+       end;
+     **/     
+              
+    
+    --(--P_USERNAME in VARCHAR2,
+     --P_SESSIONID in NUMBER,
+     --P_SEED in NUMBER,
+     --P_TOKEN out NUMBER
+     --)
+  
+ AS   
+    v_token NUMBER;
+    v_currentdatetime timestamp;
+
+ 
+       --Env Lookup
+       v_env varchar2(30);
+ 
+       v_Match_Str varchar2(1000);
+       v_match_split_pos number;
+
+        
+BEGIN
+    
+    -- Grap date/time for consistency
+    EXECUTE IMMEDIATE 'alter session set time_zone=''America/New_York''';
+    v_currentdatetime := current_timestamp ;
+
+
+    --- Determine the Connection Environment
+         --- On original proxy invocation, this field contains the source Domain
+           v_match_str := owa_util.get_cgi_env('HTTP_REFERER');
+           if v_match_str IS NULL
+                then 
+                  htp.p(SHOW_CGI_INFO());   -- show error for debug
+                  LOG_APEX_ERROR(6,'POST-AUTH-PROCESS',
+                    substr(SHOW_CGI_INFO(),1,4000) );
+                  v_match_str := owa_util.get_cgi_env('HTTP_HOST');
+              end if;
+     
+              v_match_split_pos := instr(v_match_str,'/pls/apex/f');
+              v_match_str := lower(substr(v_match_str,1,v_match_split_pos-1));
+
+
+               BEGIN
+                  select
+                    ENV into v_ENV
+                  from ENV_SETTINGS
+                  where APEX_HOST_MATCH = v_Match_Str
+                     and IWS_REL = v('IWS_REL')
+                     and  SEQUENCE > 0;
+                  EXCEPTION WHEN OTHERS THEN
+                      LOG_APEX_ERROR(6,'POST-AUTH-PROCESS',
+                          'no APEX_HOST_MATCH entry for: >>>' || v_Match_Str || '<<<');
+               END;
+
+
+    insert into SESSIONS
+        ( USERID,
+         CREATED_USERID,
+         CONN_ENV,
+         APEXSESSIONID,
+         LOGINTIMESTAMP,
+         CREATED_TIMESTAMP,
+         LASTACTIVITYTIMESTAMP,
+         IP)
+        values
+          (USERNAME_TO_USERID(v('DISPLAY_USER')),
+          USERNAME_TO_USERID(v('DISPLAY_USER')), 
+          v_ENV,    
+          v('APP_SESSION'),
+          v_currentdatetime,
+          v_currentdatetime,
+          v_currentdatetime,
+          CURRENT_USER_IP());
+   COMMIT;
+        
+
+ LOG_APEX_ACTION(
+      P_USERID => USERNAME_TO_USERID(v('DISPLAY_USER')),
+      P_ACTIONID => 6,  -- Login succeeded attempt login
+      P_RESULTS => 'Login Sess OK',
+      P_USERNAME => v('DISPLAY_USER'),
+      P_APEXSESSIONID => v('APP_SESSION')
+    );
+
+
+  
+  EXCEPTION WHEN OTHERS THEN LOG_APEX_ERROR(6,'POST-AUTH-PROCESS',
+        'username='||v('DISPLAY_USER')|| substr(SHOW_CGI_INFO(),1,3900) );
+END;
+/
+
+
+=================================
+
+create or replace
+PACKAGE IWS_DW_UTILS
+
+AS
+
+--- Master Invocation Procedure  
+PROCEDURE    "POPULATE_DW_CUBES"   
+  (P_DAYS IN NUMBER default 0); 
+
+PROCEDURE    "INC_LOAD_JOB_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+  
+PROCEDURE    "LOAD_STAGE_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+
+PROCEDURE    "LOAD_CASE_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+
+PROCEDURE    "INC_LOAD_CLIENT_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+
+PROCEDURE    "FULL_LOAD_CLIENT_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+ 
+-- Batch is Placeholder for Phase 2 
+PROCEDURE    "LOAD_BATCH_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+  
+PROCEDURE    "LOAD_USER_STATS"   
+  (P_DAYS IN NUMBER default 0);   
+
+PROCEDURE    "FULL_LOAD_WORKDAY_CASE_STATS"   
+  (P_DAYS IN NUMBER default 0); 
+
+PROCEDURE    "LOAD_ERROR_LISTING"   
+  (P_DAYS IN NUMBER default 0); 
+  
+  
+
+
+FUNCTION DATAPOINT_COUNT
+ (P_CASEID NUMBER default null )
+  RETURN NUMBER;
+
+FUNCTION OPPORTUNITY_COUNT 
+   (P_FINALPAGENUMBER NUMBER default null,
+     P_SECTIONNUMBER NUMBER default null,
+     P_CODENAME VARCHAR2 default null,
+     P_DATADATE DATE default null,
+     P_DATAFIELD1VALUE VARCHAR2 default null,
+     P_DATAFIELD2VALUE VARCHAR2 default null,
+     P_DATAFIELD3VALUE VARCHAR2 default null,
+     P_DATAFIELD4VALUE VARCHAR2 default null,    
+     P_DATAFIELD5VALUE VARCHAR2 default null,    
+     P_DATAFIELD6VALUE VARCHAR2 default null,
+     P_DATAFIELD7VALUE VARCHAR2 default null,
+     P_DATAFIELD8VALUE VARCHAR2 default null,
+     P_DATAFIELD9VALUE VARCHAR2 default null,    
+     P_DATAFIELD10VALUE VARCHAR2 default null,
+     P_DATAFIELD11VALUE VARCHAR2 default null,
+     P_DATAFIELD12VALUE VARCHAR2 default null )
+  RETURN NUMBER;
+
+FUNCTION CASE_OPPORTUNITY_COUNT 
+ (P_CASEID NUMBER default null )
+  RETURN NUMBER;
+
+  
+FUNCTION timestamp_diff_millisecs
+   (start_time_in timestamp, 
+	end_time_in timestamp )
+  RETURN NUMBER;
+
+FUNCTION timestamp_diff_minutes
+   (start_time_in timestamp, 
+	end_time_in timestamp,
+	P_Roundto number default 1 )
+  RETURN NUMBER;
+
+  
+END IWS_DW_UTILS;
+/
+
+==============================
+create or replace 
+PACKAGE BODY IWS_DW_UTILS
+AS
+	
+PROCEDURE   "POPULATE_DW_CUBES" 
+  -- Program name - POPULATE_DW_CUBES
+  -- Created 11-14-2012 R Benzell
+  -- For Populate IWS Cubes for Operational Reporting
+  -- 1-09-2012 R Benzell refactor into separate procs per table.  
+  --                     initial LOAD_WORKDAY_CASE_STATS proc 
+  -- 1-10-2012 R Benzell refactored LOAD_WORKDAY_CASE_STATS into FULL_LOAD_WORKDAY_CASE_STATS
+  -- 1-18-2012 R Benzell refactor for other cubes
+  -- 1-21-2012 R Benzell User_Stats working.  Added Error type and severity to ERROR_LISTING
+  --                     Updates STAGE_STATS with addl calcs, 
+  --                     enhanced CASE_STATS to tally sums & min/maxs for other cubes
+  -- 1-22-2012 R Benzell FULL_LOAD_CLIENT_STATS completed
+  -- 1-24-2012 R Benzell Enhanced JOB_STATS to track sizes and results.  Added FILE_TYPE population
+ /***
+    set serveroutput on
+    begin
+    IWS_DW_UTILS.POPULATE_DW_CUBES(0);
+    end;
+***/
+    
+    (P_DAYS IN NUMBER default 0)   --- 0 means truncate table, 
+	                               --- other values will eventually perform incremental loads   
+
+ 
+  
+         IS
+
+   
+    
+
+    
+     BEGIN
+         
+      dbms_output.put_line('LOAD_IWS_CUBES started at: ' || to_char(sysdate,'YYYY-MM-DD HH24:MI.SS'));   
+         
+     --- Temp Feature - clear cubes before each run
+	 -- DELETE FROM STAGE_STATS;    
+     -- DELETE FROM CLIENT_STATS;
+	 -- DELETE FROM BATCH_STATS;
+	 -- DELETE FROM USER_STATS;
+	 -- DELETE FROM WORKDAY_CASE_STATS;
+     -- DELETE FROM ERROR_LISTING;
+	 -- DELETE FROM CASE_STATS;
+
+      IWS_DW_UTILS.inc_load_JOB_STATS(P_DAYS);
+	  IWS_DW_UTILS.load_stage_stats(P_DAYS);
+	  IWS_DW_UTILS.load_batch_stats(P_DAYS);
+	  IWS_DW_UTILS.load_user_stats(P_DAYS);
+	  IWS_DW_UTILS.full_load_workday_case_stats(P_DAYS);
+	  IWS_DW_UTILS.load_error_listing(P_DAYS);
+	  
+	--- Step 2  
+	   IWS_DW_UTILS.full_load_client_stats(P_DAYS);  -- relies on Workday_Case_Stats
+	   /*--IWS_DW_UTILS.inc_load_client_stats(P_DAYS); */
+	  
+	  IWS_DW_UTILS.load_case_stats(P_DAYS);  -- relies on STAGE_STATS & ERROR_LISTING
+
+     dbms_output.put_line('LOAD_IWS_CUBES completed at: ' || to_char(sysdate,'YYYY-MM-DD HH24:MI.SS'));
+	    
+END POPULATE_DW_CUBES;	  
+	  
+
+
+
+--------------------------------------------------------	
+---	JOB_STATS
+--------------------------------------------------------
+  
+PROCEDURE    "INC_LOAD_JOB_STATS" 
+    (P_DAYS IN NUMBER default 0) 	
+	--- Pull the Rowcount of all DW Input Tables 
+	--- provides some simple capacity analysis growth,
+	--- and a sanity check for extract sizes
+         
+     IS  
+	 	
+   T_JOB_STATS JOB_STATS%rowtype;
+    v_count number;
+		
+BEGIN	
+	
+   --- Normally JOB Stats/Log does not get trimmed  
+   --IF P_DAYS = 0
+   --  then  DELETE FROM JOB_STATS;   
+   --END IF;	 
+		 
+
+	 Select count(*)  into v_count from  JOB_STATS;
+     dbms_output.put_line('JOB Status='||v_count);  
+	  
+	 Select count(*)  into v_count from  DIM_CLIENTS;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_CLIENTS','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+     dbms_output.put_line('DIM_CLIENTS='||v_count);  
+	  
+	 Select count(*)  into v_count from  DIM_CASES;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_CASES','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_CASES='||v_count); 
+
+	 Select count(*)  into v_count from  DIM_CASEHISTORYSUM;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_CASEHISTORYSUM','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_CASEHISTORYSUM='||v_count); 
+	 
+	 Select count(*)  into v_count from  DIM_AUDITLOG;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_AUDITLOG','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_AUDITLOG='||v_count); 
+
+	 Select count(*)  into v_count from  DIM_USERS;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_USERS','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_USERS='||v_count); 
+
+	 Select count(*)  into v_count from  DIM_DPENTRYPAGES_VIEW;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_DPENTRYPAGES_VIEW','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_DPENTRYPAGES_VIEW='||v_count); 
+
+	 Select count(*)  into v_count from  DIM_STAGES;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('DIM_STAGES','SOURCE DIM',v_count,trunc(systimestamp),systimestamp,'OK','-');
+	 commit;
+	 dbms_output.put_line('DIM_STAGES='||v_count); 
+
+     dbms_output.put_line('--------------------------------------------------------------------------'); 
+	  
+END INC_LOAD_JOB_STATS; 	  
+	  
+	  
+	  
+-------------------------------------
+----- STAGE STATS              -------
+-------------------------------------  
+--- handle just 1 user per stage at this time
+--- For every Stage between File ReceiptDate to Publish:
+--- Populate Key Dates:  StepBegan, Assigned, WorkBegan, WorkEnded,
+--- Calculate times:   Unassigned, Queue, Turnaround, Productive, NonProductive  
+
+PROCEDURE    "LOAD_STAGE_STATS" 
+    (P_DAYS IN NUMBER default 0) 	  
+         
+     IS  
+	 	
+   T_STAGE_STATS STAGE_STATS%rowtype;
+
+    i number;
+    R number;
+	v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;
+		
+    v_last_created_on timestamp (6);
+	
+	S_LOGIN_ID number := 6;
+    S_LOGOFF_ID number := 84;
+	S_LOADCASE_ID  number := 85;
+	S_EXITCASE_ID  number := 86;
+	S_STEPDONE_ID  number := 87;	
+		
+BEGIN
+	 	v_job_started_on := systimestamp;
+        I := 0;   
+        R := 0;   
+        
+	   IF P_DAYS = 0
+		 then  DELETE FROM STAGE_STATS;   
+	   END IF;	 
+	   commit;	 
+
+		
+     for A in
+       ( SELECT C.FILE_TYPE, B.CLIENTID,A.CASEID,A.STAGEID,S.STAGENAME,A.USERID,A.STAGESTARTTIMESTAMP,
+	            A.ASSIGNMENTSTARTTIMESTAMP,A.STAGECOMPLETIONTIMESTAMP, A.CREATED_TIMESTAMP 
+	            from DIM_CASEHISTORYSUM A,
+				     DIM_CASES B,
+					 DIM_STAGES  S,
+					 DIM_CLIENTS C
+              WHERE  -- A.CREATED_TIMESTAMP > (sysdate-P_DAYS) AND
+			      B.CASEID = A.CASEID  AND
+			      S.STAGEID = A.STAGEID AND
+				  C.CLIENTID = B.CLIENTID
+             --ND A.CASEID=2345 --AND ROWNUM < 10
+         ORDER BY A.CASEID,A.CREATED_TIMESTAMP ASC  )
+     LOOP   
+       R := R + 1;
+ 
+ /**
+ 		dbms_output.put_line('HISTNUM=' ||
+		        'row='    ||A.CHID ||
+		        'chid='   ||A.CHID ||
+		        'stageid='||A.STAGEID ||
+			    'userid=' ||A.USERID ||
+			    'date='   ||to_char(A.CREATED_TIMESTAMP,'YYYY-MM-DD HH:MI.ss'));
+		dbms_output.put_line('STAGE=' || 
+		         'stageid='||T_STAGE_STATS.STAGEID ||
+			    'userid='  ||T_STAGE_STATS.USERID ||
+			    'date='    ||to_char(T_STAGE_STATS.STARTED_ON,'YYYY-MM-DD HH:MI.ss'));
+**/		  
+			  
+	--- If StageID has changed, or UserId has changed to Another user (but not null to user)
+	--, write out previous record, reset for next look		  
+		IF	    A.STAGEID <> T_STAGE_STATS.STAGEID 
+		        OR A.CASEID <> T_STAGE_STATS.CASEID 
+		   -- OR (A.USERID <> T_STAGE_STATS.USERID AND T_STAGE_STATS.USERID IS NOT NULL AND A.USERID IS NOT NULL)
+          THEN
+     	   --- Calculate Final Dates and Times before recording data
+
+		   --- For Now, just Grab when the Case First Loads
+			   	  SELECT min(timestamp) into T_STAGE_STATS.WORK_BEGAN_ON
+				  FROM DIM_AUDITLOG
+                  WHERE
+			      actionid = S_LOADCASE_ID
+			    	and CASEID =  T_STAGE_STATS.CASEID
+			    	and STAGEID = T_STAGE_STATS.CASEID
+			        and timestamp >= T_STAGE_STATS.ASSIGNED_ON
+				    and timestamp <= T_STAGE_STATS.STAGE_FINISHED_ON;
+				 --- If no CaseLoad, use AssignedOn end  
+                 IF T_STAGE_STATS.WORK_BEGAN_ON IS NULL          
+ 	                 THEN T_STAGE_STATS.WORK_BEGAN_ON    :=  T_STAGE_STATS.ASSIGNED_ON ;
+			     END IF;
+
+           --- If no StageEnd recorded, use the Date/time CaseHistSum entry was created
+             IF T_STAGE_STATS.STAGE_FINISHED_ON IS NULL then
+			   T_STAGE_STATS.STAGE_FINISHED_ON := v_last_created_on;
+			 END IF;  
+
+		   --- For Now, just Grab when the Last Case Exit
+			   	  SELECT max(timestamp) into T_STAGE_STATS.WORK_FINISHED_ON
+				  FROM DIM_AUDITLOG
+                  WHERE
+			      actionid = S_LOADCASE_ID
+			    	and CASEID =  T_STAGE_STATS.CASEID
+			    	and STAGEID = T_STAGE_STATS.CASEID
+			        and timestamp >= T_STAGE_STATS.ASSIGNED_ON
+				    and timestamp <= T_STAGE_STATS.STAGE_FINISHED_ON;
+				 --- If no CaseExit, use stage end  
+                 IF T_STAGE_STATS.WORK_FINISHED_ON IS NULL          
+ 	                 THEN T_STAGE_STATS.WORK_FINISHED_ON    := T_STAGE_STATS.STAGE_FINISHED_ON ;
+			     END IF;
+				 
+			
+
+              --- Calculate the times Before final writeout
+	          ---	 'Time (in minutes) no user was assigned to a case.';
+                T_STAGE_STATS.UNASSIGNED_TIME := TIMESTAMP_DIFF_MINUTES(T_STAGE_STATS.STAGE_STARTED_ON,T_STAGE_STATS.ASSIGNED_ON  );
+    
+	 		--Time (in minutes) user was assigned case but had not started work on it. WORK_BEGAN_ON -minus ASSIGNED_ON.  Increments even if user is not logged in.';
+	 		 T_STAGE_STATS.QUEUE_TIME := TIMESTAMP_DIFF_MINUTES(T_STAGE_STATS.ASSIGNED_ON,T_STAGE_STATS.WORK_BEGAN_ON  );
+		
+   			 --Time (in minutes) between User Started and Completed Work. 
+	 		 T_STAGE_STATS.NET_TURN_AROUND_TIME := TIMESTAMP_DIFF_MINUTES(T_STAGE_STATS.WORK_BEGAN_ON ,T_STAGE_STATS.WORK_FINISHED_ON  );  
+	
+			--Time (in minutes) between Stage Start and Work Finishing.
+      		T_STAGE_STATS.TURN_AROUND_TIME := TIMESTAMP_DIFF_MINUTES(T_STAGE_STATS.STAGE_STARTED_ON ,T_STAGE_STATS.WORK_FINISHED_ON  ); 
+	
+			--'Time (in minutes) when assigned user was in IWS Case';
+			-- Need to Query AuditLog to tally breaks
+    		--T_STAGE_STATS.PRODUCTIVE_TIME is 'Time (in minutes) when assigned user was in IWS Case';
+			 -- If more than 1 pair of 85/86,  = 'Load IWS Case/Exit IWS Case', then tally sum
+	 		T_STAGE_STATS.PRODUCTIVE_TIME := T_STAGE_STATS.NET_TURN_AROUND_TIME; -- round(T_STAGE_STATS.NET_TURN_AROUND_TIME *.9,1);   --- 90% for testing
+	
+   		    --Time (in minutes) when assigned users were not in IWS Case (after they have first begun work';
+			-- Need to Query AuditLog to tally breaks
+			-- If more than 1 pair of 85/86,  = 'Load IWS Case/Exit IWS Case', then tally sum
+	 		T_STAGE_STATS.PAUSE_TIME := 0;   --round(T_STAGE_STATS.NET_TURN_AROUND_TIME * .1,1);   --- 10% for testing
+	
+			--'Time (in minutes) PAUSE + UNASSIGNED + QUEUE Time';
+   			  T_STAGE_STATS.NONPRODUCTIVE_TIME :=  nvl(T_STAGE_STATS.PAUSE_TIME,0) +  nvl(T_STAGE_STATS.UNASSIGNED_TIME,0) + nvl(T_STAGE_STATS.QUEUE_TIME,0);
+	 
+			  T_STAGE_STATS.CREATED_ON    := SYSTIMESTAMP;
+			  
+			   T_STAGE_STATS.FILE_TYPE    := A.FILE_TYPE;
+
+			 
+			--- Write it out
+               INSERT INTO STAGE_STATS values T_STAGE_STATS;
+			   I := I + 1;
+			   COMMIT;
+			   T_STAGE_STATS := null;
+				 
+		END IF;
+		
+	  	--- holder of timestamp is needed as default for omitted date fields	 
+			v_last_created_on := A.CREATED_TIMESTAMP; 
+
+		
+		 -- Populate all blank fields as new information is obtained from each CaseRowRead
+		     IF T_STAGE_STATS.CLIENTID IS NULL 
+		       THEN T_STAGE_STATS.CLIENTID    := A.CLIENTID;
+			 END IF;
+
+		     IF T_STAGE_STATS.CASEID IS NULL 
+		       THEN T_STAGE_STATS.CASEID    := A.CASEID;
+			 END IF;
+
+           --- Record even if UserId is Null,
+		     T_STAGE_STATS.STAGEID    := A.STAGEID;
+
+
+           --- Just using STATUS column to assist with debugging 
+		     IF T_STAGE_STATS.STATUS IS NULL 
+		       THEN T_STAGE_STATS.STATUS    := substr(A.STAGENAME,1,30);
+			 END IF;
+
+           --- First User to work on this Stage gets all the credit
+		     IF T_STAGE_STATS.USERID  IS NULL 
+		       THEN T_STAGE_STATS.USERID     := A.USERID   ;
+			 END IF;
+
+		     IF T_STAGE_STATS.STAGE_STARTED_ON IS NULL 
+		       THEN T_STAGE_STATS.STAGE_STARTED_ON    := A.STAGESTARTTIMESTAMP  ;
+			 END IF;
+
+		     IF T_STAGE_STATS.STAGE_FINISHED_ON IS NULL 
+		       THEN T_STAGE_STATS.STAGE_FINISHED_ON    := A.STAGECOMPLETIONTIMESTAMP  ;
+			 END IF;
+
+
+		     IF T_STAGE_STATS.ASSIGNED_ON IS NULL 
+		       THEN T_STAGE_STATS.ASSIGNED_ON    := A.ASSIGNMENTSTARTTIMESTAMP  ;
+			 END IF;
+
+
+
+
+       END LOOP; 
+
+   --- finish writing last row in buffer
+     INSERT INTO STAGE_STATS values T_STAGE_STATS;
+     I := I + 1;
+	 COMMIT;
+	 
+	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  STAGE_STATS;
+	 
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT, RUN_TIME,
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('STAGE_STATS','OUTPUT CUBE',v_count,R,I, v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+	 
+	 
+      dbms_output.put_line('STAGE_STATS - Rows Read: ' || R || ' Insert Count = ' || I);
+
+END LOAD_STAGE_STATS; 
+
+
+
+
+
+
+	  
+
+
+-------------------------------------
+----- BATCH_STATS           -------
+-------------------------------------   
+-- Placeholder for Phase2      
+PROCEDURE    "LOAD_BATCH_STATS" 
+    (P_DAYS IN NUMBER default 0) 
+	
+IS 	
+	 i number;
+	 r number;	
+	 
+	v_count number;
+	v_job_started_on timestamp (6);	
+    v_job_finished_on timestamp (6);
+    v_run_time number;	
+	
+BEGIN
+
+  v_job_started_on := systimestamp;	
+  
+  
+   IF P_DAYS = 0
+     then  DELETE FROM BATCH_STATS;   
+   END IF;	 
+   commit;		 
+  
+  r := 0;  -- rows Read
+  i := 0; -- rows Inserted
+  dbms_output.put_line('BATCH_STATS - Insert Count = ' || I);
+  
+  
+  	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  BATCH_STATS;
+	 
+	 
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('BATCH_STATS','OUTPUT CUBE',v_count,R,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+  
+  
+  	  
+END LOAD_BATCH_STATS; 
+
+
+
+
+
+
+-------------------------------------
+----- USER_STATS           -------
+-------------------------------------      
+--- Loop through Audit table, and capture logins, logouts and case exits/entries.
+--- If activity is noted but no login recorded, use midnight of that date for workstart.
+--- If activity is noted but no logout recorded, use 11;59:59 of that night for workend.
+--- difference between workend and workstart is turn_around_time
+--- run through all case load/exits, and increment productive time.
+--- turnaround_time  minus  productive_time = nonProductive time 
+
+
+PROCEDURE    "LOAD_USER_STATS" 
+    (P_DAYS IN NUMBER default 0) 
+	
+IS	
+	 i number;
+	 r number;
+	 
+	 S_LOGIN_ID number := 6;
+	 S_LOGOFF_ID number := 84;
+	 S_LOADCASE_ID  number := 85;
+	 S_EXITCASE_ID  number := 86;
+	 S_STEPDONE_ID  number := 87;
+  
+	 
+	 T_USER_STATS USER_STATS%rowtype;
+	 v_CASE_BEGAN timestamp(6);
+	 
+	 v_count number;
+	 v_job_started_on timestamp (6);
+	 v_job_finished_on timestamp (6);
+	 v_run_time number;
+	
+BEGIN
+	
+	v_job_started_on := systimestamp;
+
+  IF P_DAYS = 0
+     then  DELETE FROM USER_STATS;   
+   END IF;
+   commit;	 
+
+
+	 r := 0;  -- rows Read
+     i := 0; -- rows Inserted
+
+      T_USER_STATS := null;
+
+	 -- initialize some values with Zero so incremental math works 
+      T_USER_STATS.TURN_AROUND_TIME := 0;
+      T_USER_STATS.PRODUCTIVE_TIME := 0; 
+	  T_USER_STATS.NONPRODUCTIVE_TIME :=0;
+	
+	
+	--- Loop through AUDITLOG, find (or imply) the Login, Logoff and multiple case start/stops, and tally up 
+      for A in
+        ( SELECT  a.userid,
+		          trunc(a.timestamp) ACTIVITY_DATE,
+		          a.timestamp CREATED_ON,
+		          a.actionid,
+				  rownum,
+				  b.actionname
+             from  dim_auditlog A,
+                   dim_actions b
+              WHERE
+			    a.actionid in (S_LOGIN_ID, S_LOGOFF_ID, S_LOADCASE_ID, S_EXITCASE_ID, S_STEPDONE_ID)
+                and b.actionid=a.actionid  
+			    -- and a.timestamp > (sysdate-P_DAYS)
+				and a.USERID IS NOT NULL
+				and a.TIMESTAMP IS NOT NULL
+				and a.USERID >=1  
+				--and a.SessionId >= 1
+				--and rownum <= 25
+           ORDER BY a.userid, a.timestamp  )
+          LOOP   
+            R := R + 1;
+            --T_USER_STATS := NULL;
+
+/**
+		dbms_output.put_line('Tbl:' ||
+		        '  Row '    ||A.ROWNUM ||
+		     --   'chid='   ||A.CHID ||
+		        '  action= '||A.ACTIONNAME ||
+			    '  userid=' ||A.USERID ||
+			    '  date='   ||to_char(A.CREATED_ON,'YYYY-MM-DD HH:MI.ss'));
+		dbms_output.put_line('Stats: ' || 
+		        -- 'stageid='||T_STAGE_STATS.STAGEID ||
+			    '  userid='  ||T_USER_STATS.USERID ||
+			    '  actdate='    ||to_char(T_USER_STATS.ACTIVITY_DATE,'YYYY-MM-DD HH:MI.ss'));
+
+		dbms_output.put_line('--------------------------------------------------------');
+**/	
+
+	--- If Date has changed, or UserId has changed to Another user,  write out previous record, reset for next look		  
+		IF	(trunc(A.ACTIVITY_DATE) <> T_USER_STATS.ACTIVITY_DATE 
+		     OR (A.USERID <> T_USER_STATS.USERID) )
+			 AND A.ROWNUM > 1
+          THEN
+		  	   --- Generate default dates if missing
+			    IF  T_USER_STATS.WORK_BEGAN_ON IS NULL THEN
+				   T_USER_STATS.WORK_BEGAN_ON := T_USER_STATS.ACTIVITY_DATE;
+				END IF;
+				
+				IF  T_USER_STATS.WORK_FINISHED_ON IS NULL THEN    
+				  T_USER_STATS.WORK_FINISHED_ON := T_USER_STATS.ACTIVITY_DATE + .09;  --(set to 11:59:59)
+				END IF;  
+				
+  		  	 --- Final Calcs before writing row
+	     		  T_USER_STATS.TURN_AROUND_TIME := TIMESTAMP_DIFF_MINUTES(T_USER_STATS.WORK_BEGAN_ON,T_USER_STATS.WORK_FINISHED_ON);
+			 							  
+               --- NONPRODUCTIVE_TIME is 'Time (in minutes) when assigned user was NOT in IWS Case. (after they have first begun work';';
+			     T_USER_STATS.NONPRODUCTIVE_TIME := 	T_USER_STATS.TURN_AROUND_TIME -  T_USER_STATS.PRODUCTIVE_TIME; 				  
+				
+			
+			  --- Write the completed Statistic
+                 INSERT INTO USER_STATS values T_USER_STATS;
+			     I := I + 1;
+			     COMMIT;
+
+
+				-- Reset for next loop initialize some values with Zero so incremental math works
+				  T_USER_STATS := null; 
+				  v_CASE_BEGAN := null;
+				  T_USER_STATS.TURN_AROUND_TIME := 0;
+			      T_USER_STATS.PRODUCTIVE_TIME := 0; 
+			      T_USER_STATS.NONPRODUCTIVE_TIME :=0;
+					 
+		END IF;
+
+ 
+	 --- Set some default or one-time values that will persist for this record			  T_USER_STATS.ACTIVITY_DATE := A.ACTIVITY_DATE;
+	       T_USER_STATS.USERID := A.USERID;
+	       T_USER_STATS.CREATED_ON := SYSTIMESTAMP;  
+		   T_USER_STATS.ACTIVITY_DATE := A.ACTIVITY_DATE;
+	 
+		--- Set Work Began to earliest Login encountered 
+		-- USER_STATS.WORK_BEGAN_ON is'when user first logins, or midnight if still logged in from previous day';
+		 IF T_USER_STATS.WORK_BEGAN_ON IS NULL and A.ACTIONID = S_LOGIN_ID
+		  THEN T_USER_STATS.WORK_BEGAN_ON := A.CREATED_ON;
+		 END IF; 
+		 
+		 -- user can stop and restart case work multiple times.  
+		 -- Record each case start for later comparison
+		 IF A.ACTIONID = S_LOADCASE_ID 
+		   THEN v_CASE_BEGAN  := A.CREATED_ON;
+		 END IF; 
+
+		--- Presume Work Ended on Last logoff, exit or step completion 
+		  IF  A.ACTIONID = S_LOGOFF_ID   OR 
+		      A.ACTIONID = S_EXITCASE_ID OR 
+			  A.ACTIONID = S_STEPDONE_ID 	
+		    THEN
+		      -- WORK_FINISHED_ON is 'when user last logs out, or midnight if still logged in at end of day'; 
+		  	  T_USER_STATS.WORK_FINISHED_ON := A.CREATED_ON;
+			  
+			  --- Perform Case Work end Calcs
+
+			  -- If no v_CASE_BEGAN for today, assume midnight (worked though the night)
+			  IF v_CASE_BEGAN IS NULL
+			   then v_CASE_BEGAN := T_USER_STATS.ACTIVITY_DATE;
+			  END IF; 
+			  
+			  -- Add this last began/end case work to todays increment for user
+			  -- PRODUCTIVE_TIME is 'Time (in minutes) when assigned user WAS in IWS Case today
+			  T_USER_STATS.PRODUCTIVE_TIME := T_USER_STATS.PRODUCTIVE_TIME +
+                                  TIMESTAMP_DIFF_MINUTES(v_CASE_BEGAN,A.CREATED_ON);
+			
+			-- Then bump up for next loop
+			-- Next Case began can't be earlier than last case finish		  
+			  v_CASE_BEGAN := A.CREATED_ON;  				  
+			  	
+		   END IF; 
+		 
+
+          END LOOP;
+
+	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  USER_STATS;
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('USER_STATS','OUTPUT CUBE',v_count,R,I,v_run_time, 
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+	 
+	dbms_output.put_line('USER STATS - Read Count =' || R || ' Insert Count = ' || I);
+  		  
+END LOAD_USER_STATS; 
+
+
+
+
+
+
+
+
+-------------------------------------
+----- WORKDAY_CASE_STATS      -------
+-------------------------------------         
+PROCEDURE    "FULL_LOAD_WORKDAY_CASE_STATS" 
+    (P_DAYS IN NUMBER default 0) 	  
+
+ 
+	 --- Use the Case "Created_on" timestamp instead of receipt date, because receiptdate is not accurate
+	 --- Receipt is indicated by RECIEVED_FLAG=X
+	 --- Any day that file has not been published, CARRYFORWARD_FLAG=X
+     --- Once a case is marked "COMPLETED_FLAG"="X", any further changes will not be noted
+     --- Record Stage Status at beginning and end of each day.	
+	 ----
+	 
+	 IS
+	 	
+
+    T_WORKDAY_STATS WORKDAY_CASE_STATS%rowtype;
+	T_PREV_WORKDAY_STATS WORKDAY_CASE_STATS%rowtype;
+
+	v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;
+			
+    v_return varchar2(200);
+
+    c number;
+    i number;
+	j number;
+    w number;
+    p number;
+	v_ActiveDays number;
+	
+	v_DateBeg Date;
+	v_DateEnd Date;
+	
+	v_CtrBeg number;
+	v_CtrEnd number;
+	
+    v_ActivityDate date;
+	v_CreatedDate date;
+	v_PrevCreatedDate date;
+	v_min_CHID number;
+	v_max_CHID number;
+	
+	
+	S_Published number := 31;
+	S_Published_PDF number := 63;
+	S_Published_XML number := 64;
+		
+BEGIN
+	
+  v_job_started_on := systimestamp;
+  
+    IF P_DAYS = 0
+     then  DELETE FROM WORKDAY_CASE_STATS;   
+   END IF;	 
+   commit;
+  
+  
+  --- Loop through every Case, and note its current status for that day
+           C := 0;  
+		   I := 0;   
+		  --- Get core Case Info going back P_DAYS
+           for A in
+             ( SELECT A.CLIENTID, C.FILE_TYPE, A.CASEID,  A.RECEIPTTIMESTAMP, A.STAGEID, A.STATUS,
+			         A.CREATED_TIMESTAMP, A.UPDATED_TIMESTAMP,
+					 A.TOTALPAGES,
+					 DATAPOINT_COUNT(A.CASEID) TOTAL_DP_COUNT 
+                from DIM_CASES A,
+				     DIM_CLIENTS C
+				WHERE C.CLIENTID = A.CLIENTID 
+				--  where CASEID = 2345
+				--AND CREATED_TIMESTAMP >= trunc(sysdate) - P_DAYS
+               order by 1)
+               
+            LOOP   
+			  C := C + 1;
+			  
+			  
+			 -- clear out from previous loop 
+			  T_WORKDAY_STATS := null;
+	          T_PREV_WORKDAY_STATS := null;
+
+           --- Determine beginning and ending date markers 
+             Select trunc(min(CREATED_TIMESTAMP)),trunc(max(CREATED_TIMESTAMP))
+		           into v_DateBeg,v_DateEnd
+				   From dim_casehistorysum
+				   where CASEID = A.CASEID; 
+ 
+          --- Convert those markers in integers for looping
+           v_ActiveDays := v_DateEnd - v_DateBeg +1;	
+		   v_ActivityDate := v_DateBeg;  
+
+		--- run from oldest date requested to current 	
+			For J IN REVERSE 1..v_ActiveDays
+			LOOP
+				-- v_ActivityDate := trunc(sysdate) - J;
+			  	-- dbms_output.put_line(J || ' - ' ||  v_ActivityDate);
+               
+ 				
+                 T_WORKDAY_STATS.CLIENTID := A.CLIENTID;
+				 T_WORKDAY_STATS.FILE_TYPE := A.FILE_TYPE;
+                 T_WORKDAY_STATS.CASEID   := A.CASEID;
+				 T_WORKDAY_STATS.ACTIVITY_DATE := v_ActivityDate;
+				 T_WORKDAY_STATS.CREATED_ON := SYSTIMESTAMP;
+				 T_WORKDAY_STATS.TOTAL_DP_COUNT := A.TOTAL_DP_COUNT;
+				 T_WORKDAY_STATS.TOTAL_PAGES := A.TOTALPAGES;
+				 
+				 --- Get the latest  CaseHistorySum Keys for each date
+				 SELECT min(CHID), max(CHID) 
+				  into v_min_CHID, v_max_CHID 
+				    from DIM_CASEHISTORYSUM
+				    WHERE CASEID = A.CASEID
+				    AND trunc(CREATED_TIMESTAMP) = v_ActivityDate;
+					
+		  	-- dbms_output.put_line(J || ' - ' ||  v_ActivityDate || 'min=' || v_min_CHID || 'max='||v_max_CHID );
+		
+		 --- Determine the BEG Stage for that day	 
+			IF v_min_CHID IS NULL 
+			  THEN
+			 	 T_WORKDAY_STATS.STAGE_AT_DAY_BEG := T_PREV_WORKDAY_STATS.STAGE_AT_DAY_BEG;
+			  ELSE	
+			   SELECT STAGEID,  CREATED_TIMESTAMP
+			        into T_WORKDAY_STATS.STAGE_AT_DAY_BEG, v_CreatedDate
+				    from DIM_CASEHISTORYSUM
+				    WHERE CHID=v_min_CHID;
+			 END IF;		
+
+        --- Determine the END Stage for that day	
+			 IF v_max_CHID IS NULL 
+			 THEN
+			 	 T_WORKDAY_STATS.STAGE_AT_DAY_END := T_PREV_WORKDAY_STATS.STAGE_AT_DAY_END;
+			 ELSE	 	 
+			   SELECT STAGEID, CREATED_TIMESTAMP 
+			         into T_WORKDAY_STATS.STAGE_AT_DAY_END, v_CreatedDate
+				    from DIM_CASEHISTORYSUM
+				    WHERE CHID=v_max_CHID;
+			 END IF;
+
+			
+			--- RECEIPTTIMESTAMP is currently not accurate - donot use for Flag
+			-- And some Cases don't show a stageId of 1		
+			--IF trunc(A.RECEIPTTIMESTAMP) = v_ActivityDate
+			--  then T_WORKDAY_STATS.RECEIVED_FLAG := 'X';
+			--  else T_WORKDAY_STATS.RECEIVED_FLAG := '';
+			--END IF; 
+
+           --- Base Receipt to be the first time this File appears in Case History
+			IF J = v_ActiveDays
+			  then T_WORKDAY_STATS.RECEIVED_FLAG := 'X';
+			  else T_WORKDAY_STATS.RECEIVED_FLAG := '';
+			END IF;
+
+	
+          --- Was completed on this DATE, or is Carry Forward?
+			IF 	(T_WORKDAY_STATS.STAGE_AT_DAY_END = S_Published     OR 
+			     T_WORKDAY_STATS.STAGE_AT_DAY_END = S_Published_PDF OR 
+			 	 T_WORKDAY_STATS.STAGE_AT_DAY_END = S_Published_XML    )    
+				--AND T_WORKDAY_STATS.STAGE_AT_DAY_END <> T_WORKDAY_STATS.STAGE_AT_DAY_BEG
+			  then T_WORKDAY_STATS.COMPLETED_FLAG := 'X';
+      			   T_WORKDAY_STATS.CARRY_FORWARD_FLAG := null;
+			  else T_WORKDAY_STATS.COMPLETED_FLAG := null;
+			  	   T_WORKDAY_STATS.CARRY_FORWARD_FLAG := 'X';
+			END IF; 
+			
+			--- Cancellations - Implement for Phase2
+			--  CANCELLED_NONBILL_FLAG	VARCHAR2(1),
+	        --  CANCELLED_BILLABLE_FLAG	VARCHAR2(1),
+
+			INSERT INTO WORKDAY_CASE_STATS values T_WORKDAY_STATS;
+			I := I+1;
+			
+		-- save previous days, but massage certain field	
+			T_PREV_WORKDAY_STATS := T_WORKDAY_STATS;
+			T_PREV_WORKDAY_STATS.STAGE_AT_DAY_BEG := T_PREV_WORKDAY_STATS.STAGE_AT_DAY_END;
+			v_PrevCreatedDate := v_CreatedDate;
+			COMMIT;
+			
+			v_ActivityDate := v_ActivityDate+1;
+				 
+			END LOOP;
+			
+               
+
+     END LOOP;
+     
+	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  WORKDAY_CASE_STATS;
+	 
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('WORKDAY_CASE_STATS','OUTPUT CUBE',v_count,C,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+
+     dbms_output.put_line('WORKDAY STATS - Cases Read = ' || C || '  Status Inserted = ' || I );
+
+END FULL_LOAD_WORKDAY_CASE_STATS;
+
+
+
+
+
+
+
+
+
+
+-------------------------------------
+----- INC CLIENT STATS   -------
+-------------------------------------         
+PROCEDURE    "INC_LOAD_CLIENT_STATS" 
+--- Incrementally builds Client Status based on Case Status at the End of Day 
+
+    (P_DAYS IN NUMBER default 0) 	  
+
+
+	 
+	 IS
+	 	
+    T_CLIENT_STATS CLIENT_STATS%rowtype;
+
+	v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;	
+	
+    v_return varchar2(200);
+
+    c number;
+    i number;
+    w number;
+    p number;
+    --v_count number;
+    --v_date date;
+	
+	S_Published number := 31;
+	S_Published_PDF number := 63;
+	S_Published_XML number := 64;
+		
+BEGIN
+	
+    v_job_started_on := systimestamp;
+
+      IF P_DAYS = 0
+        then  DELETE FROM CLIENT_STATS;   
+      END IF;
+	  commit;	 
+  
+	
+	       C := 0; 
+           I := 0;   
+           for A in
+           (  SELECT  CLIENTID             CLIENTID  ,
+		              FILE_TYPE,
+                      trunc(RECEIVED_ON)   ACTIVITY_DATE,
+                      nvl(sum(TOTAL_PAGES),0)     SUM_TOTAL_PAGES, 
+                      nvl(sum(TOTAL_DP_COUNT),0)  SUM_TOTAL_DP_COUNT,
+                      DECODE(STAGEID,S_Published,'PUB',     --- Homogonize all Publishes
+                                     S_Published_PDF,'PUB',
+                                     S_Published_XML,'PUB',
+                                     'INPROC')  STATUS,
+                      nvl(count(*),0)             FILE_COUNT
+                from CASE_STATS
+               --WHERE RECEIVED_ON > (sysdate-P_DAYS)
+             GROUP BY CLIENTID,trunc(RECEIVED_ON), 
+                DECODE(STAGEID,S_Published,'PUB',
+                               S_Published_PDF,'PUB',
+                               S_Published_XML,'PUB',
+                              'INPROC') 
+               order by 1,2,3,4)
+               
+            LOOP   
+				
+			C := C + 1;	
+
+
+            --- See if we have a new client or activity date requiring a write of the last row
+              IF  T_CLIENT_STATS.CLIENTID <> A.CLIENTID  OR
+                  T_CLIENT_STATS.ACTIVITY_DATE <> A.ACTIVITY_DATE
+                  Then
+                      INSERT INTO CLIENT_STATS values T_CLIENT_STATS;
+                      COMMIT;
+					  I := I + 1;
+                      T_CLIENT_STATS := NULL;
+					  T_CLIENT_STATS.FILE_TYPE := NULL;
+                      T_CLIENT_STATS.PUBLISHED_FILE_COUNT := 0;
+                      T_CLIENT_STATS.PUBLISHED_PAGE_COUNT := 0;
+                      T_CLIENT_STATS.PUBLISHED_DATAPOINT_COUNT := 0;
+                      T_CLIENT_STATS.INPROCESS_FILE_COUNT := 0;
+                      T_CLIENT_STATS.INPROCESS_PAGE_COUNT := 0;
+					  T_CLIENT_STATS.CREATED_ON  := systimestamp;
+
+
+               END IF;           
+                  
+
+              T_CLIENT_STATS.CLIENTID := A.CLIENTID;
+			  T_CLIENT_STATS.FILE_TYPE := A.FILE_TYPE; 
+              T_CLIENT_STATS.ACTIVITY_DATE := A.ACTIVITY_DATE;
+
+             CASE
+              WHEN A.STATUS = 'PUB' THEN
+                 T_CLIENT_STATS.PUBLISHED_FILE_COUNT := A.FILE_COUNT;
+                 T_CLIENT_STATS.PUBLISHED_PAGE_COUNT := A.SUM_TOTAL_PAGES;
+                 T_CLIENT_STATS.PUBLISHED_DATAPOINT_COUNT := A.SUM_TOTAL_DP_COUNT;
+                 P := P + 1;
+
+             WHEN A.STATUS = 'INPROC' THEN
+                 T_CLIENT_STATS.INPROCESS_FILE_COUNT := A.FILE_COUNT;
+                 T_CLIENT_STATS.INPROCESS_PAGE_COUNT := A.SUM_TOTAL_PAGES;
+                 W := W + 1;
+
+
+             ELSE null;
+
+             END CASE;
+
+             T_CLIENT_STATS.RECEIVED_FILE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_FILE_COUNT+T_CLIENT_STATS.INPROCESS_FILE_COUNT,0);
+             T_CLIENT_STATS.RECEIVED_PAGE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_PAGE_COUNT+T_CLIENT_STATS.INPROCESS_PAGE_COUNT,0);
+             
+              --T_CASE_STATS.TOTAL_PAGES := A.TOTALPAGES;
+              --T_CASE_STATS.RECEIVED_ON := A.RECEIPTTIMESTAMP;
+              --T_CASE_STATS.STAGEID     := A.STAGEID;
+
+            END LOOP;
+     
+         --- Complete and Write out the last buffered row  
+           
+             T_CLIENT_STATS.RECEIVED_FILE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_FILE_COUNT+T_CLIENT_STATS.INPROCESS_FILE_COUNT,0);
+             T_CLIENT_STATS.RECEIVED_PAGE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_PAGE_COUNT+T_CLIENT_STATS.INPROCESS_PAGE_COUNT,0);
+
+            INSERT INTO CLIENT_STATS values T_CLIENT_STATS;
+            COMMIT;
+		   	I := I + 1;
+
+           
+	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  CLIENT_STATS;
+    
+	 
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('CLIENT_STATS','OUTPUT CUBE',v_count,C,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+	 
+		   
+	 dbms_output.put_line('CLIENT_STATS - Clients = ' || C || ' Insert Count = ' || I || ' pub=' || P || ' inworks=' || W);
+
+END INC_LOAD_CLIENT_STATS;
+
+
+
+
+
+-------------------------------------
+----- FULL CLIENT STATS   -------
+-------------------------------------         
+PROCEDURE    "FULL_LOAD_CLIENT_STATS" 
+--- Full Load Client Status based on Case Status at the End of Day 
+--- Needs to run after "Workday_Case_Stats" build 
+
+    (P_DAYS IN NUMBER default 0) 	  
+
+	 
+	 IS
+	 
+	 
+    T_CLIENT_STATS CLIENT_STATS%rowtype;
+
+	v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;
+		  
+    v_return varchar2(200);
+
+    c number;
+    i number;
+    w number;
+    p number;
+ 
+	S_Published number := 31;
+	S_Published_PDF number := 63;
+	S_Published_XML number := 64;
+		
+BEGIN
+
+     v_job_started_on := systimestamp;
+
+      IF P_DAYS = 0
+        then  DELETE FROM CLIENT_STATS;   
+      END IF;	
+	  commit; 
+  
+	
+           I := 0;   
+		   
+		   for A in 
+		   (Select clientid, activity_date, FILE_TYPE,
+		      count(*) TOTAL_CASE_COUNT,
+			  count(Carry_Forward_Flag) CARRY_FORWARD_COUNT,
+			  count(Received_Flag)      RECEIVED_COUNT,
+			  count(completed_flag)     PUBLISHED_COUNT,
+			  sum(TOTAL_PAGES)          TOTAL_PAGES,
+			  sum(TOTAL_DP_COUNT)       TOTAL_DP_COUNT
+            From Workday_Case_Stats 
+           group by clientid, activity_date, file_type
+		   order by 1,2 )
+		   
+
+            LOOP   
+				
+			  T_CLIENT_STATS.CREATED_ON  := systimestamp;
+			  T_CLIENT_STATS.CLIENTID := A.CLIENTID; 
+			  T_CLIENT_STATS.FILE_TYPE := A.FILE_TYPE; 
+              T_CLIENT_STATS.ACTIVITY_DATE := A.ACTIVITY_DATE;
+			  T_CLIENT_STATS.RECEIVED_FILE_COUNT := A.RECEIVED_COUNT;
+              T_CLIENT_STATS.PUBLISHED_FILE_COUNT := A.PUBLISHED_COUNT;
+			  T_CLIENT_STATS.INPROCESS_FILE_COUNT := A.CARRY_FORWARD_COUNT;
+			  --T_CLIENT_STATS.TOTAL_PAGES := A.TOTALPAGES;
+
+			  
+			 --- Below needs work - sums all pages/DP, not just published 
+              --T_CLIENT_STATS.PUBLISHED_PAGE_COUNT := A.TOTAL_PAGES;
+              --T_CLIENT_STATS.PUBLISHED_DATAPOINT_COUNT := A.TOTAL_DP_COUNT;
+
+
+            -- T_CLIENT_STATS.INPROCESS_PAGE_COUNT := A.SUM_TOTAL_PAGES;
+
+                 INSERT INTO CLIENT_STATS values T_CLIENT_STATS;
+                 COMMIT;
+				 I := I + 1;
+					   
+				--- reset for next loop	   
+                      T_CLIENT_STATS := NULL;
+					  T_CLIENT_STATS.FILE_TYPE := NULL;
+                      T_CLIENT_STATS.PUBLISHED_FILE_COUNT := 0;
+                      T_CLIENT_STATS.PUBLISHED_PAGE_COUNT := 0;
+                      T_CLIENT_STATS.PUBLISHED_DATAPOINT_COUNT := 0;
+                      T_CLIENT_STATS.INPROCESS_FILE_COUNT := 0;
+                      T_CLIENT_STATS.INPROCESS_PAGE_COUNT := 0;
+					  
+
+
+
+             --T_CLIENT_STATS.RECEIVED_FILE_COUNT := 
+             --    nvl(T_CLIENT_STATS.PUBLISHED_FILE_COUNT+T_CLIENT_STATS.INPROCESS_FILE_COUNT,0);
+             --T_CLIENT_STATS.RECEIVED_PAGE_COUNT := 
+             --    nvl(T_CLIENT_STATS.PUBLISHED_PAGE_COUNT+T_CLIENT_STATS.INPROCESS_PAGE_COUNT,0);
+             
+              --T_CASE_STATS.TOTAL_PAGES := A.TOTALPAGES;
+              --T_CASE_STATS.RECEIVED_ON := A.RECEIPTTIMESTAMP;
+              --T_CASE_STATS.STAGEID     := A.STAGEID;
+
+            END LOOP;
+     
+         --- Complete and Write out the last buffered row  
+
+             T_CLIENT_STATS.RECEIVED_FILE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_FILE_COUNT+T_CLIENT_STATS.INPROCESS_FILE_COUNT,0);
+             T_CLIENT_STATS.RECEIVED_PAGE_COUNT := 
+                 nvl(T_CLIENT_STATS.PUBLISHED_PAGE_COUNT+T_CLIENT_STATS.INPROCESS_PAGE_COUNT,0);
+
+           INSERT INTO CLIENT_STATS values T_CLIENT_STATS;
+           COMMIT;
+		   I := I + 1;
+		   
+		   
+  	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 Select count(*)  into v_count from  CLIENT_STATS;
+
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('CLIENT_STATS','OUTPUT CUBE',v_count,I,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;	 
+ 
+
+     dbms_output.put_line('FULL LOAD CLIENT_STATS - Clients = ' || C || ' Insert Count = ' || I || ' pub=' || P || ' inworks=' || W);
+
+END FULL_LOAD_CLIENT_STATS;
+
+
+
+
+
+-------------------------------------
+----- ERROR LISTING  -------
+-------------------------------------         
+PROCEDURE    "LOAD_ERROR_LISTING" 
+    (P_DAYS IN NUMBER default 0) 
+	--- Goes through Audit Log, and looks for any QC1 stage changes for Step2-OP or Step2-DR
+	--- Determine Error Severity (minor, major, critical, 
+	--- Determine Error Type (omission, commission, mod)	
+	--- Limitation: If file gets manually reassigned/demoted back to an earlier stage, previous errors will be dropped
+	
+
+IS
+	
+
+    T_ERROR_LISTING ERROR_LISTING%rowtype;
+
+    i number;
+    v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;	
+	
+	S_STEP2_OP number := 6;
+	S_STEP2_DR number := 68;
+
+ 
+ BEGIN
+	
+v_job_started_on := systimestamp;
+
+  IF P_DAYS = 0
+      then  DELETE FROM ERROR_LISTING;   
+  END IF;	 
+  commit;
+
+i := 0;
+
+FOR A IN            
+ (select *
+  from (
+SELECT 
+  case.CLIENTID,
+  client.FILE_TYPE,
+  aud.caseid,    
+  aud.ORIGINALUSERID,
+  dpe.CREATED_USERID,
+  aud.USERID,
+  aud.TIMESTAMP,
+  aud.STAGEID,
+  aud.objectid dpentryid,  
+  iws_app_utils.getCodeScale2(aud.caseid,dpe.hid) CodeScale,
+  substr(aud.objecttype,11) field_name, 
+  aud.originalvalue,  
+  aud.modifiedvalue,
+  aud.logid
+  FROM DIM_AUDITLOG aud,  
+       DIM_CASES Case,
+	   DIM_DPENTRIES dpe,
+	   DIM_CLIENTS client
+  WHERE case.CASEID = AUD.CASEID AND
+      dpe.DPENTRYID = aud.objectid AND
+	  client.CLIENTID = case.CLIENTID AND
+      (aud.originalvalue <> aud.modifiedvalue  -- if value changed
+  OR (aud.originalvalue IS NULL AND aud.modifiedvalue IS NOT NULL)   -- if new value entered
+  OR (aud.originalvalue IS NOT NULL AND aud.modifiedvalue IS NULL))   -- if value deleted
+  AND aud.objecttype IN ( 
+   'DPENTRIES.DATADATE',   -- if data date changed
+   'DPENTRIES.DATAFIELD1VALUE', 'DPENTRIES.DATAFIELD2VALUE', 'DPENTRIES.DATAFIELD3VALUE', 'DPENTRIES.DATAFIELD4VALUE',   -- if data field value changed
+   'DPENTRIES.DATAFIELD5VALUE', 'DPENTRIES.DATAFIELD6VALUE', 'DPENTRIES.DATAFIELD7VALUE', 'DPENTRIES.DATAFIELD8VALUE',   -- if data field value changed
+   'DPENTRIES.DATAFIELD9VALUE', 'DPENTRIES.DATAFIELD10VALUE', 'DPENTRIES.DATAFIELD11VALUE', 'DPENTRIES.DATAFIELD12VALUE',   -- if data field value changed
+   'DPENTRIES.HID',  -- if code is replaced
+   'DPENTRIES.SUSPENDNOTE', -- if review note entered in QA Review step
+   'DPENTRIES.PAGEID', 'DPENTRIES.STARTSECTIONNUMBER', 'DPENTRIES.ENDSECTIONNUMBER')  -- if page/section changed
+  AND aud.timestamp >=  (SELECT MAX(ch.stagecompletiontimestamp) FROM DIM_casehistorysum ch   -- capture changed DP entries since last stage change from 2-op to 2-qc1
+                           WHERE stagecompletiontimestamp is not null and stageid = S_STEP2_OP and ch.caseid=aud.caseid )  -- will need enhancement for Trifurcation
+      order by field_name,logid)
+	)  
+  
+  
+ LOOP
+    I := I + 1; 
+    -- htp.p(I || ' '||  A.originalvalue || '=>' || A.modifiedvalue ||'<br>');
+    T_ERROR_LISTING.CLIENTID         := A.CLIENTID;
+    T_ERROR_LISTING.CASEID           := A.CASEID;
+	T_ERROR_LISTING.FILE_TYPE        := A.FILE_TYPE;
+    T_ERROR_LISTING.FIELD_NAME       := A.FIELD_NAME;
+    T_ERROR_LISTING.DPENTRYID        := A.DPENTRYID;
+    T_ERROR_LISTING.LOGID            := A.LOGID;
+    T_ERROR_LISTING.ORIGINAL_VALUE   := A.originalvalue;
+    T_ERROR_LISTING.ORIGINAL_USERID  := A.CREATED_USERID;  -- had to grap from dpentries table because A.ORIGINALUSERID was empty
+    T_ERROR_LISTING.MODIFIED_VALUE   := A.modifiedvalue;
+    T_ERROR_LISTING.MODIFIED_USERID  := A.USERID;
+    T_ERROR_LISTING.MODIFIED_ON      := A.TIMESTAMP;
+    T_ERROR_LISTING.MODIFIED_STAGEID := A.STAGEID;
+	T_ERROR_LISTING.CREATED_ON       := SYSTIMESTAMP;
+	T_ERROR_LISTING.CODE_SCALE       := A.CODESCALE;
+	
+	--- convert Criticality into Flag
+	CASE
+		WHEN A.CODESCALE=0  THEN
+	       T_ERROR_LISTING.OBSERVATION_ERROR_FLAG := 'X';
+
+		WHEN A.CODESCALE=1  THEN
+	       T_ERROR_LISTING.MINOR_ERROR_FLAG := 'X';
+
+		WHEN A.CODESCALE=2  THEN
+	       T_ERROR_LISTING.MAJOR_ERROR_FLAG := 'X';
+		   
+		WHEN A.CODESCALE=3  THEN
+	       T_ERROR_LISTING.CRITICAL_ERROR_FLAG := 'X';
+		   
+		ELSE  null;
+	END CASE;	   
+	
+	
+--- Determine whether ommission, commission or modifcation Error	
+	CASE
+		--- Missed entry - Ommission Error
+		WHEN A.ORIGINALVALUE IS NULL and A.MODIFIEDVALUE IS NOT NULL THEN
+	       T_ERROR_LISTING.OMISSION_ERROR_FLAG := 'X';
+		
+		--- Uneeded entry - Commission Error   
+		WHEN A.ORIGINALVALUE IS NOT NULL and A.MODIFIEDVALUE IS NULL THEN
+	       T_ERROR_LISTING.COMMISSION_ERROR_FLAG := 'X';
+
+		--- Altered entry - Modification Error   
+		WHEN A.ORIGINALVALUE IS NOT NULL and A.MODIFIEDVALUE IS NOT NULL THEN
+	       T_ERROR_LISTING.MODIFICATION_ERROR_FLAG := 'X';
+		   
+		ELSE null;
+	END CASE;		   
+
+
+
+
+   --- Store Entry in DP, reset for next look
+   INSERT INTO ERROR_LISTING values T_ERROR_LISTING;
+   COMMIT;
+   T_ERROR_LISTING := NULL;
+     
+  END LOOP;
+  
+	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+     Select count(*)  into v_count from  ERROR_LISTING;
+
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('ERROR_LISTING','OUTPUT CUBE',v_count,I,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;  
+     
+   dbms_output.put_line('ERROR_LISTING - Insert Count = ' || I  );
+          
+ 
+       
+     --  EXCEPTION WHEN OTHERS THEN  LOG_APEX_ERROR(1);
+
+     END LOAD_ERROR_LISTING;
+	 
+	 
+	 
+	 
+	 
+-------------------------------------
+----- CASE STATS              -------
+-------------------------------------  
+
+PROCEDURE    "LOAD_CASE_STATS" 
+
+--- this Extract should be run last.
+--- it replies on some of the other extracts (STAGE_STATS & ERROR_LISTING) 
+--- for error counts, time summations and min/max dates
+
+
+    (P_DAYS IN NUMBER default 0) 	  
+         
+     IS  
+	 	
+   T_CASE_STATS CASE_STATS%rowtype;
+
+
+    v_return varchar2(200);
+
+    i number;
+    w number;
+    p number;
+	
+    v_count number;
+	v_job_started_on timestamp (6);
+    v_job_finished_on timestamp (6);
+    v_run_time number;	
+	
+    v_date date;
+	
+	S_Published number := 31;
+	S_Published_PDF number := 63;
+	S_Published_XML number := 64;
+	
+	S_LOGIN_ID number := 6;
+    S_LOGOFF_ID number := 84;
+	S_LOADCASE_ID  number := 85;
+	S_EXITCASE_ID  number := 86;
+	S_STEPDONE_ID  number := 87;
+  
+		
+BEGIN
+	
+	v_job_started_on := systimestamp;
+	
+	IF P_DAYS = 0
+        then  DELETE FROM CASE_STATS;   
+    END IF;	 
+    commit;
+	
+	
+           I := 0;   
+           P := 0;   
+           W := 0;   
+           for A in
+           (SELECT  A.CASEID, A.CLIENTID, L.FILE_TYPE, A.TOTALPAGES,A.RECEIPTTIMESTAMP,A.STAGEID,A.CLIENTFILENAME,
+                    count(b.CRITICAL_ERROR_FLAG) CRITICAL_ERROR_COUNT,
+                    count(b.MAJOR_ERROR_FLAG) MAJOR_ERROR_COUNT,
+                    count(b.MINOR_ERROR_FLAG) MINOR_ERROR_COUNT,
+                    count(b.OBSERVATION_ERROR_FLAG) OBSERVATION_ERROR_COUNT,
+                    count(b.OMISSION_ERROR_FLAG) OMISSION_ERROR_COUNT,
+                    count(b.COMMISSION_ERROR_FLAG)  COMMISSION_ERROR_COUNT,
+                    count(b.MODIFICATION_ERROR_FLAG) MODIFICATION_ERROR_COUNT,
+					sum(C.productive_time) PRODUCTIVE_TIME,
+					sum(C.nonproductive_time) NONPRODUCTIVE_TIME,
+					sum(C.Pause_time) PAUSE_TIME,
+					sum(C.QUEUE_time) QUEUE_TIME,
+					sum(C.UNASSIGNED_time) UNASSIGNED_TIME,
+					sum(C.TURN_AROUND_TIME) TURN_AROUND_TIME,
+					sum(C.NET_TURN_AROUND_TIME) NET_TURN_AROUND_TIME,
+					min(ASSIGNED_ON) ASSIGNED_ON,
+					min(WORK_BEGAN_ON) WORK_BEGAN_ON,
+					max(WORK_FINISHED_ON) WORK_FINISHED_ON
+                from DIM_CASES A,
+                     ERROR_LISTING B,
+					 STAGE_STATS C,
+					 DIM_CLIENTS L
+                  WHERE  -- A.RECEIPTTIMESTAMP > (sysdate-P_DAYS)  AND
+				         A.CASEID  = B.CASEID (+)  AND
+						 A.CASEID = C.CASEID (+) AND
+						 L.CLIENTID = A.CLIENTID 
+                  group by a.caseid,A.CLIENTID,L.FILE_TYPE,A.TOTALPAGES,A.RECEIPTTIMESTAMP,A.STAGEID,A.CLIENTFILENAME
+                order by caseid )
+            LOOP   
+              I := I + 1;
+              T_CASE_STATS := NULL;
+
+     
+              T_CASE_STATS.CASEID          := A.CASEID;
+              T_CASE_STATS.CLIENTID        := A.CLIENTID; 
+			  T_CASE_STATS.FILE_TYPE       := A.FILE_TYPE;
+			  T_CASE_STATS.CREATED_ON      := SYSTIMESTAMP;
+              T_CASE_STATS.CLIENT_FILENAME := A.CLIENTFILENAME; 
+              T_CASE_STATS.TOTAL_PAGES     := A.TOTALPAGES;
+              T_CASE_STATS.RECEIVED_ON     := A.RECEIPTTIMESTAMP;
+              T_CASE_STATS.STAGEID         := A.STAGEID;
+
+             Select max(STAGESTARTTIMESTAMP) into T_CASE_STATS.PUBLISHED_ON
+             from DIM_casehistorysum where caseid=A.CASEID
+             and STAGEID IN (S_Published, S_Published_PDF, S_Published_XML)  
+             and STAGESTARTTIMESTAMP is not null;
+
+             IF T_CASE_STATS.PUBLISHED_ON IS NOT NULL 
+               THEN --- convert milliseconds to minutes
+                  T_CASE_STATS.CYCLE_TIME := ROUND(TIMESTAMP_DIFF_MilliSecs(
+                      T_CASE_STATS.RECEIVED_ON,T_CASE_STATS.PUBLISHED_ON ) / (1000*60));
+               ELSE
+                   T_CASE_STATS.CYCLE_TIME := NULL;
+             END IF;
+			 
+			 T_CASE_STATS.OMISSION_ERROR_COUNT     :=  A.OMISSION_ERROR_COUNT  ;
+             T_CASE_STATS.COMMISSION_ERROR_COUNT   :=  A.COMMISSION_ERROR_COUNT  ;
+             T_CASE_STATS.MODIFICATION_ERROR_COUNT :=  A.MODIFICATION_ERROR_COUNT;
+			 T_CASE_STATS.ERROR_COUNT              := A.OMISSION_ERROR_COUNT + A.COMMISSION_ERROR_COUNT + A.MODIFICATION_ERROR_COUNT;
+			 
+             T_CASE_STATS.CRITICAL_ERROR_COUNT     :=  A.CRITICAL_ERROR_COUNT  ;
+             T_CASE_STATS.MAJOR_ERROR_COUNT        :=  A.MAJOR_ERROR_COUNT     ;
+             T_CASE_STATS.MINOR_ERROR_COUNT        :=  A.MINOR_ERROR_COUNT   ;
+             T_CASE_STATS.OBSERVATION_ERROR_COUNT  :=  A.OBSERVATION_ERROR_COUNT;
+	
+
+              T_CASE_STATS.TOTAL_DP_COUNT := DATAPOINT_COUNT(A.CASEID);
+              T_CASE_STATS.OPPORTUNITY_COUNT := CASE_OPPORTUNITY_COUNT(A.CASEID);
+
+           
+
+             IF T_CASE_STATS.OPPORTUNITY_COUNT > 0 -- Avoid divide by 0 errors
+               THEN  T_CASE_STATS.QUALITY_EFFICIENCY :=
+                   round(100 - (( T_CASE_STATS.ERROR_COUNT/T_CASE_STATS.OPPORTUNITY_COUNT)*100),1);
+               ELSE T_CASE_STATS.QUALITY_EFFICIENCY := 0;
+             END IF;
+
+
+
+
+       IF A.STAGEID = S_Published or  A.STAGEID = S_Published_PDF or A.STAGEID = S_Published_XML      
+          THEN T_CASE_STATS.STATUS := 'PUBLISHED';
+          ELSE T_CASE_STATS.STATUS := 'ACTIVE';                       
+       END IF;
+	   
+	  --- Grab the tally up worktimes that are available in other tables 
+          T_CASE_STATS.productive_time     := A.PRODUCTIVE_TIME;  
+		  T_CASE_STATS.nonproductive_time  := A.NONPRODUCTIVE_TIME;
+		  T_CASE_STATS.Pause_time          := A.PAUSE_TIME;
+		  T_CASE_STATS.QUEUE_time          := A.QUEUE_TIME;
+		  T_CASE_STATS.UNASSIGNED_time     := A.UNASSIGNED_TIME;
+		  T_CASE_STATS.ASSIGNED_ON         := A.ASSIGNED_ON;
+		  T_CASE_STATS.WORK_BEGAN_ON       := A.WORK_BEGAN_ON;
+		  T_CASE_STATS.WORK_FINISHED_ON    := A.WORK_FINISHED_ON;
+		  T_CASE_STATS.TURN_AROUND_TIME     := A.TURN_AROUND_TIME;
+		  T_CASE_STATS.NET_TURN_AROUND_TIME := A.NET_TURN_AROUND_TIME;
+		  
+
+          -- CASE_STATS.CYCLE_TIME is 'Time (in minutes) from RECEIVED_ON to PUBLISHED_ON';
+		  T_CASE_STATS.CYCLE_TIME := TIMESTAMP_DIFF_MINUTES(T_CASE_STATS.RECEIVED_ON,T_CASE_STATS.PUBLISHED_ON);
+		  
+
+      --- Write out and reset for next loop             
+        INSERT INTO CASE_STATS values T_CASE_STATS;
+		COMMIT;
+		T_CASE_STATS := null;
+
+       END LOOP; 
+	   
+	   	 --- Store Job run times
+	 v_job_finished_on := systimestamp;
+	 v_run_time := TIMESTAMP_DIFF_MINUTES(v_job_started_on,v_job_finished_on);
+	 
+	 Select count(*)  into v_count from  CASE_STATS;
+	 
+	 INSERT into JOB_STATS  (TABLE_NAME,TABLE_TYPE,ROW_COUNT,READ_COUNT,INSERT_COUNT,RUN_TIME, 
+	            JOB_STARTED_ON,JOB_FINISHED_ON,ACTIVITY_DATE,CREATED_ON,JOB_STATUS,JOB_MESSAGE)
+	 values ('CASE_STATS','OUTPUT CUBE',v_count,I,I,v_run_time,
+	       v_job_started_on,v_job_finished_on,trunc(v_job_finished_on),systimestamp,'OK','-');
+	 commit;
+
+      dbms_output.put_line('CASE_STATS - Insert Count = ' || I);
+END LOAD_CASE_STATS; 
+
+	 
+	 
+	 
+	 
+	 
+	 
+	 
+-----------------------------------------------------------------------------	 
+--- Function Utilies	 
+-----------------------------------------------------------------------------
+
+FUNCTION           "DATAPOINT_COUNT" 
+    (P_CASEID NUMBER default null)
+    
+    -- Created 12-1-2011 R Benzell
+    -- Used by Finance/billing reports to provide count of Datapoints for a particular case.
+    -- does not included ISDELETED (soft deletes) in counts
+    
+    -- to test:  select DATAPOINT_COUNT(1800) from dual;
+    -- Updated 9-16-2012 R Benzell
+    -- use SNX_IWS2.DPENTRYPAGES_VIEW 
+    -- Updated 10-17-2012 R Benzell
+    -- use DPENTRYPAGES_VIEW 
+    
+    
+        RETURN number
+    
+        IS
+    
+       v_Count number;
+        BEGIN
+            
+       
+       BEGIN
+         select count(*) into v_Count
+          from DIM_DPENTRYPAGES_VIEW   --DPENTRYPAGES_VIEW
+            where  CASEID = P_CASEID 
+            AND ( ISDELETED = 'N' or ISDELETED IS NULL);
+       EXCEPTION WHEN OTHERS THEN 
+            v_Count := NULL;
+       END;
+ 
+         return v_Count;
+       
+      END DATAPOINT_COUNT;
+
+
+-------------------------------------------------------------------------
+
+FUNCTION           "OPPORTUNITY_COUNT" 
+    (P_FINALPAGENUMBER NUMBER default null,
+     P_SECTIONNUMBER NUMBER default null,
+     P_CODENAME VARCHAR2 default null,
+     P_DATADATE DATE default null,
+     P_DATAFIELD1VALUE VARCHAR2 default null,
+     P_DATAFIELD2VALUE VARCHAR2 default null,
+     P_DATAFIELD3VALUE VARCHAR2 default null,
+     P_DATAFIELD4VALUE VARCHAR2 default null,    
+     P_DATAFIELD5VALUE VARCHAR2 default null,    
+     P_DATAFIELD6VALUE VARCHAR2 default null,
+     P_DATAFIELD7VALUE VARCHAR2 default null,
+     P_DATAFIELD8VALUE VARCHAR2 default null,
+     P_DATAFIELD9VALUE VARCHAR2 default null,    
+     P_DATAFIELD10VALUE VARCHAR2 default null,
+     P_DATAFIELD11VALUE VARCHAR2 default null,
+     P_DATAFIELD12VALUE VARCHAR2 default null )
+    
+    -- Created 11-7-2012 R Benzell
+    -- Counts the number of Fields for a DataPoint that have entry values
+    -- Fields are passed as parameters 
+--/** to test    
+--    select OPPORTUNITY_COUNT(2,3) from dual
+--     select OPPORTUNITY_COUNT(2,3,'xxx',sysdate,'123') from dual
+     
+    
+
+    
+        RETURN number
+    
+        IS
+    
+        v_Count number default 0;
+
+       BEGIN
+
+         IF P_FINALPAGENUMBER is not null THEN v_Count := v_count+1; END IF;
+         IF P_SECTIONNUMBER   is not null THEN v_Count := v_count+1; END IF;
+         IF P_CODENAME        is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATADATE        is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD1VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD2VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD3VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD4VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD5VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD6VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD7VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD8VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD9VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD10VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD11VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF P_DATAFIELD12VALUE is not null THEN v_Count := v_count+1; END IF;
+       
+ 
+         return v_Count;
+       
+      END OPPORTUNITY_COUNT;
+
+
+-------------------------------------------------------------------------
+FUNCTION   "CASE_OPPORTUNITY_COUNT" 
+    (P_CASEID NUMBER default null )
+    
+    -- Created 11-14-2012 R Benzell
+    -- Counts the number of Fields for a DataPoint that have entry values
+    -- For the entire case
+--/** to test    
+--    select CASE_OPPORTUNITY_COUNT(2047) from dual
+   
+    
+
+    
+        RETURN number
+    
+        IS
+    
+        v_Count number default 0;
+
+       BEGIN
+
+          for A in
+           ( SELECT  FINALPAGENUMBER,
+          SECTIONNUMBER,
+          CODENAME,
+          DATADATE,
+          DATAFIELD1VALUE,
+          DATAFIELD2VALUE,
+          DATAFIELD3VALUE,
+          DATAFIELD4VALUE,    
+          DATAFIELD5VALUE,    
+          DATAFIELD6VALUE,
+          DATAFIELD7VALUE,
+          DATAFIELD8VALUE,
+          DATAFIELD9VALUE,    
+          DATAFIELD10VALUE,
+          DATAFIELD11VALUE,
+          DATAFIELD12VALUE
+             from DIM_DPENTRYPAGES_VIEW
+               WHERE CASEID = P_CASEID)
+          LOOP
+           
+
+         IF A.FINALPAGENUMBER is not null THEN v_Count := v_count+1; END IF;
+         IF A.SECTIONNUMBER   is not null THEN v_Count := v_count+1; END IF;
+         IF A.CODENAME        is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATADATE        is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD1VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD2VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD3VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD4VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD5VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD6VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD7VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD8VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD9VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD10VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD11VALUE is not null THEN v_Count := v_count+1; END IF;
+         IF A.DATAFIELD12VALUE is not null THEN v_Count := v_count+1; END IF;
+
+         END LOOP;
+ 
+         return v_Count;
+       
+      END CASE_OPPORTUNITY_COUNT;
+
+
+
+
+	
+-------------------------------------------------------------------------
+-------------------------------------------------------------------------
+
+function timestamp_diff_minutes
+   (
+     start_time_in timestamp,
+     end_time_in timestamp,
+	 P_RoundTo number default 1
+)
+return number
+
+as
+	 l_days number;
+	l_hours number;
+	l_minutes number;
+	l_seconds number;
+	l_milliseconds number;
+	v_return number;
+
+begin
+	
+	select extract(day from end_time_in-start_time_in)
+	, extract(hour from end_time_in-start_time_in)
+	, extract(minute from end_time_in-start_time_in)
+	, extract(second from end_time_in-start_time_in)
+	into l_days, l_hours, l_minutes, l_seconds
+	from dual;
+
+	l_milliseconds := l_seconds*1000 + l_minutes*60*1000
+						+ l_hours*60*60*1000 + l_days*24*60*60*1000;
+	
+	-- Convert milliseconds to minutes and round to tenths.  If null, make zero					
+	v_return := nvl(round(l_milliseconds / (1000 * 60),p_roundTo),0);
+						
+
+	return v_return;
+
+  end timestamp_diff_minutes;
+
+
+
+----
+function timestamp_diff_millisecs
+   (
+     start_time_in timestamp,
+      end_time_in timestamp
+)
+return number
+
+as
+	 l_days number;
+	l_hours number;
+	l_minutes number;
+	l_seconds number;
+	l_milliseconds number;
+
+begin
+	
+	select extract(day from end_time_in-start_time_in)
+	, extract(hour from end_time_in-start_time_in)
+	, extract(minute from end_time_in-start_time_in)
+	, extract(second from end_time_in-start_time_in)
+	into l_days, l_hours, l_minutes, l_seconds
+	from dual;
+
+	l_milliseconds := l_seconds*1000 + l_minutes*60*1000
+						+ l_hours*60*60*1000 + l_days*24*60*60*1000;
+
+	return l_milliseconds;
+
+  end timestamp_diff_millisecs;
+
+
+END IWS_DW_UTILS;
+
+
+
+
+
+=================================
+===  Connect as SYS
+=================================
+
+
+--*** Core Extract Tables
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_auditlog FOR SNX_IWS2.auditlog;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_USERS FOR SNX_IWS2.USERS;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_Clients FOR SNX_IWS2.Clients;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_CASES FOR SNX_IWS2.CASES;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_CASEHISTORYSUM FOR SNX_IWS2.CASEHISTORYSUM;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_dpentries FOR SNX_IWS2.dpentries;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_pages FOR SNX_IWS2.pages;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_MEDHIERARCHY_LEAF_LEVEL_V  FOR SNX_IWS2.MEDICALHIERARCHY_LEAF_LEVEL_V;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_SESSIONS FOR SNX_IWS2.SESSIONS;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_ACTIONS FOR SNX_IWS2.ACTIONS; 
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_DPENTRIES FOR SNX_IWS2.DPENTRIES;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_STAGES  FOR SNX_IWS2.STAGES;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.dim_actions FOR SNX_IWS2.actions;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.Dim_Roles FOR SNX_IWS2.Roles;
+ 
+--*** Referenced by APEX Metrics
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_DIVISIONS FOR SNX_IWS2.DIVISIONS;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_TEAMS FOR SNX_IWS2.TEAMS;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_GROUPS FOR SNX_IWS2.GROUPS;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_HEAD FOR SNX_IWS2.HEAD;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_ERRORLOG FOR SNX_IWS2.ERRORLOG;
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.DIM_USERROLES FOR SNX_IWS2.USERROLES;
+
+
+
+
+---- Grant Select on Tables for APEX
+grant select on  SNX_IWS_DW.BATCH_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.CASE_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.CLIENT_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.ERROR_LISTING  to snx_iws2;
+grant select on  SNX_IWS_DW.STAGE_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.JOB_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.USER_STATS   to snx_iws2;
+grant select on  SNX_IWS_DW.WORKDAY_CASE_STATS   to snx_iws2;
+
+grant select on SNX_IWS_DW.DIM_SESSIONS to snx_iws2;
+grant select on SNX_IWS_DW.DIM_USERS to snx_iws2;
+
+grant select on  SNX_IWS_DW.DIM_DIVISIONS  to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_TEAMS  to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_GROUPS   to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_HEAD  to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_SESSIONS  to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_ERRORLOG  to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_USERROLES to snx_iws2;
+grant select on  SNX_IWS_DW.DIM_DATES to snx_iws2;
+
+grant select on  SNX_IWS_DW.dim_auditlog  to snx_iws2;
+grant select on  SNX_IWS_DW.dim_USERS  to snx_iws2;
+grant select on  SNX_IWS_DW.dim_Clients  to snx_iws2;
+grant select on  SNX_IWS_DW.dim_CASES  to snx_iws2;
+grant select on  SNX_IWS_DW.dim_CASEHISTORYSUM  to snx_iws2;
+
+grant select on  SNX_IWS_DW.DIM_dpentries  to snx_iws2;
+Grant Select On  Snx_Iws_Dw.Dim_Pages  To Snx_Iws2;
+Grant Select On  Snx_Iws_Dw.Dim_user_hierarchy  To Snx_Iws2;
+
+
+grant execute on snx_iws2.iws_app_utils to snx_iws_dw; 
+CREATE OR REPLACE SYNONYM SNX_IWS_DW.iws_app_utilsFOR SNX_IWS2.iws_app_utils;
+
+REM INSERTING into ACTIONS
+Insert into ACTIONS (ACTIONID,ACTIONNAME,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID) values (84,'Logoff',to_timestamp_tz('26-DEC-12 02.24.58.101700000 PM AMERICA/NEW_YORK','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null);
+Insert into ACTIONS (ACTIONID,ACTIONNAME,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID) values (85,'Load IWS Case',to_timestamp_tz('26-DEC-12 02.24.58.445100000 PM AMERICA/NEW_YORK','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null);
+Insert into ACTIONS (ACTIONID,ACTIONNAME,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID) values (86,'Exit IWS Case',to_timestamp_tz('26-DEC-12 02.24.58.774400000 PM AMERICA/NEW_YORK','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null);
+Insert into ACTIONS (ACTIONID,ACTIONNAME,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID) values (87,'IWS Step Completed',to_timestamp_tz('26-DEC-12 02.24.59.105800000 PM AMERICA/NEW_YORK','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null);
+Insert into ACTIONS (ACTIONID,ACTIONNAME,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID) values (88,'Session Active Ping',to_timestamp_tz('26-DEC-12 02.24.59.435000000 PM AMERICA/NEW_YORK','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null);
+
+
+
+REM INSERTING 
+-- dded  LOVLABEL = 'FILE_TYPE' to LOVS and LOVVALUES
+Insert into LOVS (LOVID,LOVLABEL,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'APEX_ASSIGNMENT_REASON',to_timestamp_tz('07-JAN-13 02.18.56.471900000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,1,null);
+Insert into LOVS (LOVID,LOVLABEL,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5441,'APEX_FILE_TYPE',to_timestamp_tz('07-JAN-13 01.48.51.427700000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,1,null);
+
+
+REM INSERTING
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5441,'MEDICAL_INS',25024,to_timestamp_tz('07-JAN-13 01.49.50.267800000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,20,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5441,'LIFE_INS',25025,to_timestamp_tz('07-JAN-13 01.49.50.273400000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,10,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5441,'DISABILITY_INS',25026,to_timestamp_tz('07-JAN-13 01.49.50.275100000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,30,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'Client Requested',25027,to_timestamp_tz('07-JAN-13 02.19.36.044100000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,10,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'Error Reprocessing',25028,to_timestamp_tz('07-JAN-13 02.19.36.046100000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,20,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'Premature Completion of Step by User',25029,to_timestamp_tz('07-JAN-13 02.19.36.047600000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,30,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'Case Cancelled',25030,to_timestamp_tz('07-JAN-13 02.19.36.049100000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,40,null);
+Insert into LOVVALUES  (LOVID,LOVVALUE,LVID,CREATED_TIMESTAMP,CREATED_USERID,CREATED_STAGEID,UPDATED_TIMESTAMP,UPDATED_USERID,UPDATED_STAGEID,SEQUENCE,NOTES) values (5442,'Case Correction',25031,to_timestamp_tz('07-JAN-13 02.19.58.333000000 PM -05:00','DD-MON-RR HH.MI.SS.FF AM TZR'),null,null,null,null,null,5,null);
+
+
+REM update data for new LOVs
+update clients set file_type = 'LIFE_INS' where file_type is null
+update LOVS set LOVLABEL='APEX_LOCATIONS' where LOVID=43 and LOVLABEL='LOCATIONS'
+
+
+---=============================================
+--- *** Created Daily Job in Oracle Scheduler, with the following characteristics
+---=============================================
+
+•	Repeating
+•	1 day
+•	US Eastern Time EST
+•	Start Today
+•	6pm EST(for DW Extract jobs – this is a lull after US/Europe work ends, and before Noida work begins  (=11pm GMT UK.   =4:30AM IST Noida)
+•	Grace - Indefinite
+•	Repeat - Indefinite
+
+--- Sql script to be run:
+WHENEVER SQLERROR EXIT FAILURE;
+set serveroutput on;
+  -- Truncate Cubes before each run (no Redo Generated)
+  -- Job Stats gets incremented, do not truncate
+	 TRUNCATE TABLE snx_iws_dw.STAGE_STATS;    
+     TRUNCATE TABLE snx_iws_dw.CLIENT_STATS;
+	 TRUNCATE TABLE snx_iws_dw.BATCH_STATS;
+	 TRUNCATE TABLE snx_iws_dw.USER_STATS;
+	 TRUNCATE TABLE snx_iws_dw.WORKDAY_CASE_STATS;
+     TRUNCATE TABLE snx_iws_dw.ERROR_LISTING;
+	 TRUNCATE TABLE snx_iws_dw.CASE_STATS;
+     EXEC IWS_DW_UTILS.POPULATE_DW_CUBES(0); 
+
+---=============================================
+
+---*** Apex Updates  
+
+
+Import file "f175 2013-01-29_6.15pm 1.0.1.85.sql"
+Edit application 1275 
+Shared Components => Application Computations => System Env
+Changed "computation" static value from "DEV" to "PROD" or "QA"
+

@@ -1,0 +1,35 @@
+
+
+CREATE OR REPLACE FORCE VIEW "SNX_IWS2"."USER_ROLES_STAGES_POP_VIEW" ("STAGENAME", "PARALLELISM", "STAGEID", "USERNAME", "USERID", "ROLENAME", "ROLEID", "PRIORITY","USER_FUNCTION_GROUP")
+AS
+  SELECT S.stagename,
+    S.parallelism,
+    RS.stageid,
+    A.USERNAME,
+    U.USERID,
+    R.ROLENAME,
+    U.ROLEID,
+    U.priority,
+    S.USER_FUNCTION_GROUP
+  FROM userroles U,
+    roles R ,
+    Users A,
+    stages S,
+    rolestages RS
+  WHERE R.ROLEID = U.ROLEID
+  AND A.USERID   = U.USERID
+  AND RS.roleid  = R.roleid
+  AND S.stageid  = RS.stageid;
+  
+  replace package IWS_APP_UTILS
+  
+
+create synonym APEX_PUBLIC_USER.IWS_APP_UTILS for snx_iws2.IWS_APP_UTILS;  
+grant execute on snx_iws2.IWS_APP_UTILS  to APEX_PUBLIC_USER;
+  update function APEX_04000.wwv_flow_epg_include_mod_local to include both
+       'IWS_APP_UTILS.DISPLAY_IMAGE_INLINE','DISPLAY_IMAGE_INLINE',
+       'IWS_APP_UTILS.GET_DISPLAY_IMAGE','GET_DISPLAY_IMAGE',
+  
+
+INSERT INTO "SNX_IWS2"."ACTIONS" (ACTIONID, ACTIONNAME) VALUES ('89', 'Append Case')
+ 

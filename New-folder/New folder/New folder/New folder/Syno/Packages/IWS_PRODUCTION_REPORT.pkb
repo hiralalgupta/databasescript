@@ -1,0 +1,129 @@
+--------------------------------------------------------
+--  File created - Friday-October-09-2015   
+--------------------------------------------------------
+--------------------------------------------------------
+--  DDL for Package Body IWS_PRDUCTION_REPORT
+--------------------------------------------------------
+
+  CREATE OR REPLACE PACKAGE BODY "SNX_IWS2"."IWS_PRDUCTION_REPORT" 
+AS
+
+FUNCTION FUN_PRODUCTIVE_TIME(P_STAGEID NUMBER, P_CASEID NUMBER) RETURN NUMBER
+AS
+V_COUNT NUMBER:=0;
+V_END_TIME TIMESTAMP;
+V_START_TIME TIMESTAMP;
+V_TIME_MINUTE NUMBER(15,2):=0;
+V_CASEID NUMBER;
+BEGIN
+FOR REC IN (
+SELECT TIMESTAMP,USERID,STAGEID,CASEID,ACTIONID FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID AND ACTIONID IN (85,86,87,90,91) ORDER BY TIMESTAMP ASC) LOOP
+V_COUNT := V_COUNT+1;
+
+SELECT CASEID INTO V_CASEID FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID AND ACTIONID IN (86,87) AND ROWNUM=1;
+
+IF V_CASEID=REC.CASEID THEN
+IF REC.ACTIONID=85 AND V_COUNT=1 THEN
+V_START_TIME := REC.TIMESTAMP;
+END IF;
+IF REC.ACTIONID IN (84,86,87,90,91) THEN
+ V_END_TIME := REC.TIMESTAMP;
+-- IF V_END_TIME IS NULL THEN
+--    RETURN V_TIME_MINUTE;
+-- END IF;
+ V_TIME_MINUTE :=  V_TIME_MINUTE + TIMESTAMP_DIFF_MINUTES(V_START_TIME,V_END_TIME);
+ V_COUNT :=0;
+END IF;
+END IF;
+END LOOP;
+RETURN V_TIME_MINUTE;
+end FUN_PRODUCTIVE_TIME;
+
+FUNCTION FUN_PRODUCTIVE_USER_TIME(P_STAGEID NUMBER, P_CASEID NUMBER,P_USERID NUMBER) RETURN NUMBER
+AS
+V_COUNT NUMBER:=0;
+V_END_TIME TIMESTAMP;
+V_START_TIME TIMESTAMP;
+V_TIME_MINUTE NUMBER(15,2):=0;
+V_CASEID NUMBER;
+V_USERID NUMBER;
+
+BEGIN
+
+SELECT MIN(TIMESTAMP) INTO V_START_TIME FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID AND USERID=P_USERID AND ACTIONID=85;
+SELECT MAX(TIMESTAMP) INTO V_END_TIME FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID AND USERID=P_USERID AND ACTIONID IN (87);
+V_TIME_MINUTE :=  V_TIME_MINUTE + timestamp_diff_minutes(V_START_TIME,V_END_TIME);
+--FOR REC IN (
+--SELECT TIMESTAMP,USERID,STAGEID,CASEID,ACTIONID FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID AND USERID=P_USERID AND ACTIONID IN (85,86,87,90,91) ORDER BY TIMESTAMP ASC) LOOP
+--V_COUNT := V_COUNT+1;
+--
+--SELECT CASEID,USERID INTO V_CASEID,V_USERID FROM AUDITLOG WHERE CASEID=P_CASEID AND STAGEID=P_STAGEID  AND USERID=P_USERID AND ACTIONID IN (86,87) AND ROWNUM=1;
+--
+--IF V_CASEID=REC.CASEID AND V_USERID=REC.USERID 
+--THEN
+--IF REC.ACTIONID=85 AND V_COUNT=1 THEN
+--V_START_TIME := REC.TIMESTAMP;
+--END IF;
+--IF REC.ACTIONID IN (84,86,87,90,91) THEN
+-- V_END_TIME := REC.TIMESTAMP;
+-- V_TIME_MINUTE :=  V_TIME_MINUTE + timestamp_diff_minutes(V_START_TIME,V_END_TIME);
+-- V_COUNT :=0;
+--END IF;
+--END IF;
+--END LOOP;
+RETURN V_TIME_MINUTE;
+end FUN_PRODUCTIVE_USER_TIME;
+
+/*This function used for hours*/
+function timestamp_diff_minutes
+   (
+     start_time_in timestamp,
+     end_time_in timestamp,
+	 P_RoundTo number default 2
+)
+return number
+
+as
+	 l_days number;
+	l_hours number;
+	l_minutes number;
+	l_seconds number;
+	l_milliseconds number;
+	v_return NUMBER;
+  l_ssecond number;
+ 
+begin
+	
+	select extract(day from end_time_in-start_time_in)
+	, extract(hour from end_time_in-start_time_in)
+	, extract(minute from end_time_in-start_time_in)
+	, extract(second from end_time_in-start_time_in)
+	into l_days, l_hours, l_minutes, l_seconds
+	from dual;
+
+ 
+--	l_milliseconds := l_seconds*1000 + l_minutes*60*1000
+--						+ l_hours*60*60*1000 + l_days*24*60*60*1000;
+--	
+--	-- Convert milliseconds to minutes and round to tenths.  If null, make zero					
+--	v_return := nvl(round(l_milliseconds / (1000 * 60),p_roundTo),0);
+        
+    l_ssecond := l_seconds + l_minutes*60	+ l_hours*60*60 + l_days*24*60*60;
+   v_return := nvl(round(l_ssecond / ( 60*60),p_roundTo),0);
+
+	return v_return;
+
+  END timestamp_diff_minutes;
+
+ FUNCTION FUN_USER_STR(P_CASEID NUMBER,P_STAGEID NUMBER) RETURN VARCHAR2
+AS
+V_STR VARCHAR2(4000);
+BEGIN
+   SELECT LISTAGG((SELECT  USERNAME FROM USERS WHERE USERID=A.USERID),' | ') WITHIN GROUP (ORDER BY USERID) INTO V_STR FROM
+(SELECT DISTINCT USERID   FROM AUDITLOG A WHERE CASEID=P_CASEID  AND STAGEID=P_STAGEID  AND ACTIONID IN (86,87)) A;
+RETURN V_STR;
+END FUN_USER_STR;
+END IWS_PRDUCTION_REPORT;
+
+/
+

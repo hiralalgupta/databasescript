@@ -1,0 +1,177 @@
+--------------------------------------------------------
+--  File created - Wednesday-May-13-2015   
+--------------------------------------------------------
+--------------------------------------------------------
+--  DDL for Type CODE
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."CODE" AS OBJECT
+(
+    "@CodeID" VARCHAR2(10 CHAR),
+    "@CodeName" VARCHAR2(50 CHAR),
+    "@CodeType"  VARCHAR2(50 CHAR),
+    "@CodeDescription"    VARCHAR2(2000 CHAR),
+    "@CodeVersion"    VARCHAR2(20 CHAR),
+    DATAPOINTS DataPoints_t);
+
+/
+
+--------------------------------------------------------
+--  DDL for Type CODES_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."CODES_T" AS TABLE OF Code;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type DATAFIELD
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."DATAFIELD" AS Object
+(
+    "@Label" VARCHAR2(100 CHAR),
+    "@Column" VARCHAR2(100 CHAR),
+    Value Varchar2(2000 CHAR));
+
+/
+
+--------------------------------------------------------
+--  DDL for Type DATAFIELDS_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."DATAFIELDS_T" AS TABLE OF DataField;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type DATAPOINT
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."DATAPOINT" AS Object
+(
+    DataDate     VARCHAR2(100 CHAR),
+    DPEntryID    VARCHAR2(50 CHAR),
+    DataFields   DataFields_t,
+    Page         VARCHAR2(5 CHAR),
+    Line         VARCHAR2(5 CHAR),
+    ISCRITICAL   VARCHAR2(1 CHAR),
+    CRITICALITY  VARCHAR2(2 CHAR),
+    DATASTATUS   VARCHAR2(30 CHAR));
+
+/
+
+--------------------------------------------------------
+--  DDL for Type DATAPOINTS_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."DATAPOINTS_T" AS TABLE OF DataPoint;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type MEDICALDATACATEGORIES_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."MEDICALDATACATEGORIES_T" AS TABLE OF MedicalDataCategory;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type MEDICALDATACATEGORY
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."MEDICALDATACATEGORY" AS object
+(
+    "@CategoryName" VARCHAR2(100 CHAR),
+    SUBCATEGORIES   Subcategories_t)
+
+/
+
+--------------------------------------------------------
+--  DDL for Type P_STAGE_STATUS_ROW
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."P_STAGE_STATUS_ROW" AS OBJECT (
+  caseid   NUMBER,
+  stageid  number,
+  file_segment number,
+  userid number,
+  iscompleted varchar2(1)
+);
+
+/
+
+--------------------------------------------------------
+--  DDL for Type P_STAGE_STATUS_TAB
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."P_STAGE_STATUS_TAB" 
+  AS TABLE 
+  OF P_STAGE_STATUS_ROW;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type SPLIT_TBL
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."SPLIT_TBL" as table of varchar2(32767);
+
+/
+
+--------------------------------------------------------
+--  DDL for Type STACK_CODES_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."STACK_CODES_T" AS TABLE OF STACK_CODES_TYPE;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type STACK_CODES_TYPE
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."STACK_CODES_TYPE" AS Object("CODE" NUMBER , "CODEDESC" NCLOB )
+
+/
+
+--------------------------------------------------------
+--  DDL for Type SUBCATEGORIES_T
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."SUBCATEGORIES_T" AS TABLE OF Subcategory;
+
+/
+
+--------------------------------------------------------
+--  DDL for Type SUBCATEGORY
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."SUBCATEGORY" AS Object
+(
+    "@SubcategoryName" VARCHAR2(100 CHAR),
+    CODES   Codes_t);
+
+/
+
+--------------------------------------------------------
+--  DDL for Type T_SQUARE_ROOT_ROW
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."T_SQUARE_ROOT_ROW" AS OBJECT (
+  start_number   NUMBER,
+  square_root    NUMBER,
+  description    VARCHAR2(50)
+);
+
+/
+
+--------------------------------------------------------
+--  DDL for Type VARCHAR2_TT
+--------------------------------------------------------
+
+  CREATE OR REPLACE TYPE "SNX_IWS2"."VARCHAR2_TT" AS TABLE OF VARCHAR2(100)
+
+/
+

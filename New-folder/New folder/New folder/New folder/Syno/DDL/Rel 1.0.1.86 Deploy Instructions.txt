@@ -1,0 +1,86 @@
+Rel 1.0.1.86.txt
+
+
+--SNX_IWS2
+update documenttypes set sequence=100 where sequence >= 1
+
+
+-- update USER_FUNCTION_GROUP on STAGES
+UPDATE "SNX_IWS2"."STAGES" SET USER_FUNCTION_GROUP = 'FV-OP' WHERE STAGEID=52
+UPDATE "SNX_IWS2"."STAGES" SET USER_FUNCTION_GROUP = 'FV-QC' WHERE STAGEID=69
+
+
+Update Screen 1 to utilize USER_FUNCTION_GROUP
+Update Screen1 listing to UNION PARALLELCASESTATUS
+Update GET_NEXT to utilize USER_FUNCTION_GROUP
+
+  
+  CREATE OR REPLACE FORCE VIEW  
+  "USER_ROLES_STAGES_POP_VIEW" (stagename,parallelism,stageid,USERNAME,USERID,ROLENAME,ROLEID, priority) AS 
+ select S.stagename,S.parallelism,RS.stageid,A.USERNAME,U.USERID,R.ROLENAME,U.ROLEID, U.priority 
+from userroles U,
+     roles R ,
+     Users A,
+     stages S,
+     rolestages RS
+where R.ROLEID = U.ROLEID
+  and A.USERID = U.USERID
+  and RS.roleid =  R.roleid
+  and S.stageid = RS.stageid;
+  
+  ALTER TABLE ROLES ADD ( POP_STAGEID number,
+                          assigned_icon_name varchar2(80),
+                          unassigned_icon_name varchar2(80),
+                          completed_icon_name  varchar2(80) )
+                          
+ Update Stages Set Assigned_Icon_Name   ='AssignedPOP2.png',
+                  Unassigned_Icon_Name ='UnAssignedPOP2.png'
+                  where STAGEID=71
+                  
+Update Roles Set Assigned_Icon_Name   ='pop2-A-assigned.png',
+                 Unassigned_Icon_Name ='pop2-A-unassigned.png',
+                 Completed_Icon_Name  = 'pop2-A-completed.png',
+                 POP_STAGEID = 71
+                  where ROLEID=104;
+                  
+Update Roles Set Assigned_Icon_Name   ='pop2-B-assigned.png',
+                 Unassigned_Icon_Name ='pop2-B-unassigned.png',
+                 Completed_Icon_Name  = 'pop2-B-completed.png',
+                 POP_STAGEID = 71
+                  where ROLEID=105;
+                  
+Update Roles Set Assigned_Icon_Name   ='pop2-C-assigned.png',
+                 Unassigned_Icon_Name ='pop2-C-unassigned.png',
+                 Completed_Icon_Name  = 'pop2-C-completed.png',
+                 POP_STAGEID = 71
+                  where ROLEID=106;
+                  
+Update Roles Set Assigned_Icon_Name   ='pop2-D-assigned.png',
+                 Unassigned_Icon_Name ='pop2-D-unassigned.png',
+                 Completed_Icon_Name  = 'pop2-D-completed.png',
+                 POP_STAGEID = 71
+                  where ROLEID=107;                  
+                    
+  
+  FTP the following icons to the images directory:  /ORACLE/fmw/Oracle_OHS1/instances/instance1/config/OHS/ohs1/images
+
+AssignedPOP2.png
+UnAssignedPOP2.png
+pop2-A-assigned.png
+pop2-A-completed.png
+pop2-A-unassigned.png
+pop2-B-assigned.png
+pop2-B-completed.png
+pop2-B-unassigned.png
+pop2-C-assigned.png
+pop2-C-completed.png
+pop2-C-unassigned.png
+pop2-D-assigned.png
+pop2-D-completed.png
+pop2-D-unassigned.png
+  
+
+
+copy function:  snx_iws2.STATUS_ICON  
+copy function:  snx_iws2.ROLEID_ICON
+​

@@ -1,0 +1,10 @@
+create or replace
+TRIGGER LOOKUP_VALUES_LVID_TGR before INSERT ON LOOKUP_VALUES FOR EACH row
+  BEGIN
+    IF inserting THEN
+      IF :NEW.LVID IS NULL THEN
+        SELECT LOOKUP_VALUES_SEQ.nextval INTO :NEW.LVID FROM dual;
+      END IF;
+    END IF;
+  END;
+  /
